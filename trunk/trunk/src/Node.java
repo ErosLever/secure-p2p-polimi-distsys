@@ -43,7 +43,7 @@ public abstract class Node {
 
 // inizializzo il nodo su una porta specifica
 	public Node(int port) {
-		this.initialPort = port;
+		initialPort = port;
 		
 		try { 
 			myIp = InetAddress.getLocalHost();
@@ -54,5 +54,9 @@ public abstract class Node {
 		}
 	}
 
+
+	protected int getInitialPort() {
+		return initialPort;
+	}
 
 }
