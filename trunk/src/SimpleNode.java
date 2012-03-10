@@ -1,3 +1,4 @@
+import java.net.Socket;
 import javax.crypto.*;
 
 /**
@@ -20,6 +21,8 @@ public class SimpleNode extends Node {
 	
 	
 	public void join() {
+		
+		// private Socket clientSocket = new Socket( /** indirizzo ipdelserver, porta del server **// );
 		
 		
 	
