@@ -1,5 +1,6 @@
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.security.KeyPair;
 import java.util.Random;
 
 /**
@@ -18,11 +19,16 @@ public abstract class Node {
 	
 	private RoutingHandler rh = new RoutingHandler();
 	
+	private byte[] privateKey;
+	private byte[] publicKey;
+	
 	//inizializzo il nodo segnando l'ip locale e la prima porta per la connessione
 	private int initialPort;
 	private InetAddress myIp;
 
 	public Node() {
+		
+		keyGeneration();
 		
 		int randomizedPort = minPort + (new Random()).nextInt(maxPort - minPort);
 		initialPort = randomizedPort;
@@ -43,6 +49,8 @@ public abstract class Node {
 
 // inizializzo il nodo su una porta specifica
 	public Node(int port) {
+		
+		keyGeneration();
 		initialPort = port;
 		
 		try { 
@@ -53,10 +61,28 @@ public abstract class Node {
 		    System.exit(-1);
 		}
 	}
-
+	
+	// metodo per ottenere le chiavi usato dai costruttori
+	private void keyGeneration() {
+		
+		KeyPair kp = SecurityHandler.getKeypair();
+		
+		privateKey = kp.getPrivate().getEncoded();
+		publicKey = kp.getPublic().getEncoded();
+		
+	}
 
 	protected int getInitialPort() {
 		return initialPort;
 	}
 
+	protected byte[] getPrivateKey() {
+		return privateKey;
+		
+	}
+	
+	protected byte[] getPublicKey() {
+		return publicKey;
+		
+	}
 }

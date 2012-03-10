@@ -14,6 +14,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
+import java.util.Scanner;
 
 import javax.crypto.KeyAgreement;
 import javax.crypto.KeyGenerator;
@@ -32,8 +33,32 @@ public class Foo {
 	 */
 	public static void main(String[] args) {
 		
+		Scanner scanner = new Scanner(System.in);
 		
-	// TEST VARI!!!!
+	if(args.length != 1) {
+		System.exit(-1);
+	}
+	
+	if(Integer.valueOf(args[0]) == 1) {
+		// caso supernodo
+		SuperNode s = new SuperNode(54321);		
+		
+	}
+	
+	if(Integer.valueOf(args[0]) == 2) {
+		
+		// caso nodo semplice
+		System.out.println("inserisci il tuo nome utente:");
+		String id = scanner.nextLine();
+		SimpleNode s = new SimpleNode(id);
+		
+		s.join();
+		
+
+		
+	}
+		
+	/** Codice di test per la prova del  messaggio crittografato
 		
 	String prova = "questa è una prova";
 	System.out.println(prova);
@@ -70,7 +95,7 @@ public class Foo {
 		e.printStackTrace();
 	} 
 	
-	
+	*/
 		
 	}
 	

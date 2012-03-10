@@ -1,16 +1,16 @@
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
-import java.net.Socket;
-import java.net.UnknownHostException;
+
+import java.io.UnsupportedEncodingException;
 import java.security.InvalidKeyException;
 import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
+import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
+
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
@@ -20,73 +20,86 @@ import javax.crypto.spec.SecretKeySpec;
 
 
 public class SecurityHandler {
-	
-	
-	//dato il canale aperto fa Diffie Helmann per ottenere il segreto
-	public static byte[] getSharedSecret(Socket s) {
+
+	/**
+	 * metodo per la generazione delle chiavi asimmetriche
+	 * 
+	 * @return KeyPair che contiene una chiave pubblica e una privata
+	 */
+	public static KeyPair getKeypair() {
+
+		KeyPairGenerator kpg;
+		KeyPair keyPair = null;
 		
-		byte[] sharedSecret = null;
-	
 		try {
-		
-			// apro gli stream per la comunicazione
-			DataOutputStream out = new DataOutputStream(s.getOutputStream());
-			DataInputStream in = new DataInputStream(s.getInputStream());
 			
-			//genero le chiavi e le encodo
-			KeyPairGenerator kpg = KeyPairGenerator.getInstance("DH");
-			KeyPair keyPair = kpg.genKeyPair();
-			byte[] keyBytes = keyPair.getPublic().getEncoded();
-
-
-			// sending public key
-			out.writeInt(keyBytes.length);
-			out.write(keyBytes);
-
-			//questo pezzo e da vedere vedere comunicazione c/s 
-			
-			// Receive a public key.
-			keyBytes = new byte[in.readInt()];
-			in.readFully(keyBytes);
-
-			//decodo la chiave pubblica ricevuta
-			KeyFactory kf = KeyFactory.getInstance("DH");
-			X509EncodedKeySpec x509Spec = new X509EncodedKeySpec(keyBytes);
-			PublicKey theirPublicKey = kf.generatePublic(x509Spec);
-
-
-			// genero il segreto
-			KeyAgreement ka = KeyAgreement.getInstance("DH");
-			ka.init(keyPair.getPrivate());
-			ka.doPhase(theirPublicKey, true);
-
-			sharedSecret = ka.generateSecret("AES").getEncoded();
-
-			
-			out.close();
-			in.close();
-			
-
-		} catch (UnknownHostException e) {
-
-		} catch (IOException e) {
+			kpg = KeyPairGenerator.getInstance("DH");
+			keyPair = kpg.genKeyPair();
 
 		} catch (NoSuchAlgorithmException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			System.out.println("Key generation problem!, algorithm not found");
+		}
 
+		return keyPair;
+
+
+	}
+	
+	
+	/**
+	 * metodo che uso esegue fisicamente il Diffie Hellman e
+	 * costruisce il segreto condiviso tra due entita
+	 * 
+	 * @param myPrivKey
+	 * @param hisPubKey
+	 * @return la chiave condivisa in forma di array di bytes
+	 */
+	public static byte[] secretKeyGen(byte[] myPrivKey, byte[]hisPubKey) {
+
+		
+		byte[] secretEncoded = null;
+		KeyFactory kf;
+		KeyAgreement ka;
+
+		try {
+			
+			kf = KeyFactory.getInstance("DH");
+			
+			// trasformo il flusso di byte nella chiave pubblica
+			X509EncodedKeySpec x509SpecPub = new X509EncodedKeySpec(hisPubKey);
+			PublicKey pubK = kf.generatePublic(x509SpecPub);
+			
+			// trasformo il flusso di byte nella chiave privata
+			
+			//TODO SI BLOCCA QUI L ESECUZIONE
+			// INAPPROPRIATE KEY SPECIFICATION...
+			
+			X509EncodedKeySpec x509SpecPrivat = new X509EncodedKeySpec(myPrivKey);
+			PrivateKey priK = kf.generatePrivate(x509SpecPrivat);
+			
+
+			// genero la chiave condivisa
+			ka = KeyAgreement.getInstance("DH");
+		
+			ka.init(priK);
+			ka.doPhase(pubK, true);
+			secretEncoded = ka.generateSecret("AES").getEncoded();
+
+		} catch (NoSuchAlgorithmException e) {
+			e.printStackTrace();
 		} catch (InvalidKeySpecException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-
 		} catch (InvalidKeyException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		
-		return sharedSecret;
 
-	}	
+		return secretEncoded;
+
+	}
+	
+	
 	
 	public static byte[] encryptMessage(byte[] key, byte[] message) {
 
@@ -153,5 +166,30 @@ public class SecurityHandler {
 		} 
 
 		return output;
+	}
+
+	/**
+	 * 
+	 * @param input
+	 * @return
+	 */
+	public static byte[] hashFunction(String input) {
+		
+		byte[] output = null;
+		
+		MessageDigest cript;
+		try {
+			cript = MessageDigest.getInstance("SHA-1");
+			output = cript.digest(input.getBytes("utf-8"));
+			
+		} catch (NoSuchAlgorithmException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (UnsupportedEncodingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return output;
+		
 	}
 }
