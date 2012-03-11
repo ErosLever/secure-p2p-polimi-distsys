@@ -22,13 +22,13 @@ public class SuperNode extends Node {
 	private HashMap<String,byte[]> listaPassword = new HashMap<String, byte[]>();
 	
 	
-	public SuperNode() {
-		super();
+	public SuperNode() throws IOException {
 		
+		this( getRandomPort() );
 
 	}
 	
-	public SuperNode(int port) {
+	public SuperNode(final int port) throws IOException {
 		super(port);
 		
 		listen();		
@@ -39,7 +39,7 @@ public class SuperNode extends Node {
 		try {
 
 
-			ServerSocket serverSocket = new ServerSocket(getInitialPort());
+			ServerSocket serverSocket = new ServerSocket();
 
 			//bloccante va creato un thread nuovo per ogni accept
 			while (true) {
@@ -59,7 +59,7 @@ public class SuperNode extends Node {
 					// genero la chiava segreta e la salvo
 					if(!listaKey.containsKey(msg.getUserID())) {
 
-						byte[] tmp = SecurityHandler.secretKeyGen(getPrivateKey(), msg.getPublicKey());
+						byte[] tmp = secretKeyGen(msg.getPublicKey());
 						listaKey.put(msg.getUserID(), tmp);
 
 					}

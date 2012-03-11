@@ -6,6 +6,8 @@ import java.io.OutputStreamWriter;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.rmi.MarshalledObject;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 
 /**
  * @author Ale
@@ -15,17 +17,25 @@ import java.rmi.MarshalledObject;
  */
 public class SimpleNode extends Node {
 	
-	String userID;
-	String password;
-	byte[] secretKey;
-	boolean connected; // lo uso per sapere se il nodo è attualmente connesso o meno ad un supernodo o meno
-	String downloadDirectory; // directory dove vengon considerati i file
+	private final String userID;
+	private final byte[] password;
+	//private final byte[] secretKey;
+	
+	/** States whether the node is connected to a SuperNode */
+	private boolean connected;
+	private String downloadDirectory; // directory dove vengon considerati i file
 	
 
-	public SimpleNode(String userID) {
-		super();
+	public SimpleNode(final String userID, final String password) throws IOException, NoSuchAlgorithmException {
+		this( getRandomPort(), userID, password );
+	}
+	
+	public SimpleNode(final int port, final String userID, final String password) throws IOException, NoSuchAlgorithmException {
+		super( port );
 		
 		this.userID = userID;
+		this.password = SecurityHandler.hashFunction( password );
+
 		connected = false;
 		
 	}
@@ -60,22 +70,22 @@ public class SimpleNode extends Node {
 					byte[] superNodePk = login.getPublicKey();
 					
 					//genero la chiave condivisa
-					System.out.println(getPrivateKey());
+					//System.out.println(getPrivateKey());
 					System.out.println(getPublicKey());
 					System.out.println(superNodePk);
 					
-					secretKey = SecurityHandler.secretKeyGen(getPrivateKey(), superNodePk);
+					byte[] secretKey = secretKeyGen( superNodePk );
 					System.out.println(secretKey.length);
 					
 					//TODO: codice per far inserire la password all utente
-					password = "prova";
+					//password = "prova";
 					
 					//costruisco ed invio il nuovo messaggio
 					
 					login.setRequest(Request.AUTH);
 					
 					//metto nel paylod l hash della password
-					login.setPayLoad(SecurityHandler.hashFunction(password));
+					login.setPayLoad(password);
 					//cripto il payload
 					login.setPayLoad(SecurityHandler.encryptMessage(secretKey, login.getPayLoad()));
 					
