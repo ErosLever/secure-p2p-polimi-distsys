@@ -1,4 +1,7 @@
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.security.KeyPair;
@@ -17,8 +20,9 @@ public abstract class Node {
 	//range di porte per possiam metterle come parametro di init ( un po piu elegante )
 	public static final int minPort = 40000;
 	public static final int maxPort = 50000;
+	public static final String supernodes = "superNodes.list";
 	
-	private final RoutingHandler rh = new RoutingHandler();
+	protected final RoutingHandler rh;
 	
 	private final byte[] privateKey;
 	private final byte[] publicKey;
@@ -49,6 +53,12 @@ public abstract class Node {
 		} catch(UnknownHostException e) {
 			throw new IOException("You are not connected to a network");
 		}
+		
+		InputStream defaultt = this.getClass().getClassLoader().getResourceAsStream(supernodes);
+		if(defaultt != null)
+			rh = new RoutingHandler(defaultt);
+		else
+			rh = new RoutingHandler();
 		
 	}
 	

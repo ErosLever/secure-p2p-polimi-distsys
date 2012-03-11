@@ -1,30 +1,6 @@
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
-import java.net.Socket;
-import java.net.UnknownHostException;
-import java.security.AlgorithmParameters;
-import java.security.AlgorithmParametersSpi;
-import java.security.InvalidAlgorithmParameterException;
-import java.security.InvalidKeyException;
-import java.security.KeyFactory;
-import java.security.KeyPair;
-import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
-import java.security.PublicKey;
-import java.security.spec.InvalidKeySpecException;
-import java.security.spec.X509EncodedKeySpec;
 import java.util.Scanner;
-
-import javax.crypto.KeyAgreement;
-import javax.crypto.KeyGenerator;
-import javax.crypto.SecretKey;
-import javax.crypto.spec.DHGenParameterSpec;
-import javax.crypto.spec.DHParameterSpec;
-import javax.swing.ImageIcon;
-
-import org.bouncycastle.asn1.x9.DHDomainParameters;
-
 
 public class Foo {
 
@@ -41,7 +17,12 @@ public class Foo {
 	
 	if(Integer.valueOf(args[0]) == 1) {
 		// caso supernodo
-		SuperNode s = new SuperNode(54321);		
+		try {
+			SuperNode s = new SuperNode(9876);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}		
 		
 	}
 	
@@ -50,9 +31,20 @@ public class Foo {
 		// caso nodo semplice
 		System.out.println("inserisci il tuo nome utente:");
 		String id = scanner.nextLine();
-		SimpleNode s = new SimpleNode(id);
+		System.out.println("inserisci la tua password:");
+		String psw = scanner.nextLine();
+		SimpleNode s;
+		try {
+			s = new SimpleNode(id, psw);
+			s.join();
+		} catch (NoSuchAlgorithmException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 		
-		s.join();
 		
 
 		
@@ -60,7 +52,7 @@ public class Foo {
 		
 	/** Codice di test per la prova del  messaggio crittografato
 		
-	String prova = "questa è una prova";
+	String prova = "questa e' una prova";
 	System.out.println(prova);
 
 	

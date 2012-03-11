@@ -3,7 +3,9 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStreamWriter;
+import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.SocketAddress;
 import java.net.UnknownHostException;
 import java.rmi.MarshalledObject;
 import java.security.MessageDigest;
@@ -51,7 +53,9 @@ public class SimpleNode extends Node {
 			try {
 				
 				//TODO togliere l indirizzo hardcoded e gestire la scelta dell indirizzo con il routing handler
-				connection = new Socket("localhost", 54321);
+				InetSocketAddress sa = (InetSocketAddress) rh.getSuperNodesList().iterator().next();
+				
+				connection = new Socket(sa.getHostName(), sa.getPort());
 				
 				//creo gli stream
 				ObjectOutputStream oos = new ObjectOutputStream(connection.getOutputStream());
