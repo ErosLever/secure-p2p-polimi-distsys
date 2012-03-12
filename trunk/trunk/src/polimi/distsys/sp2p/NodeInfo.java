@@ -1,0 +1,38 @@
+package polimi.distsys.sp2p;
+
+import java.net.InetSocketAddress;
+import java.security.PublicKey;
+
+public class NodeInfo {
+	
+	private final PublicKey publicKey;
+	private final InetSocketAddress address;
+	private final boolean isSuper;
+	
+	public NodeInfo(SuperNode sn){
+		this((Node) sn);
+	}
+	
+	public NodeInfo(SimpleNode sn){
+		this((Node) sn);
+	}
+
+	private NodeInfo(Node sn){
+		publicKey = sn.getPublicKey();
+		address = sn.getSocketAddress();
+		isSuper = sn instanceof SuperNode;
+	}
+
+	public PublicKey getPublicKey() {
+		return publicKey;
+	}
+
+	public InetSocketAddress getAddress() {
+		return address;
+	}
+
+	public boolean isSuper() {
+		return isSuper;
+	}
+
+}
