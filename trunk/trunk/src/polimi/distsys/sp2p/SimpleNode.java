@@ -51,34 +51,41 @@ public class SimpleNode extends Node {
 		
 		if(!checkAlreadyConnected || !connected) {
 			
-			Socket connection;
-			NodeInfo dest = rh.getNodesList().iterator().next();
-			Message login = createMessage(Request.LOGIN, null, dest);
-
-			InetSocketAddress sa = dest.getAddress();
-			connection = new Socket(sa.getHostName(), sa.getPort());
+			Socket connection = null;
+			ObjectOutputStream oos = null;
+			ObjectInputStream ois = null;
 			
-			ObjectOutputStream oos = new ObjectOutputStream(connection.getOutputStream());
-			ObjectInputStream ois = new ObjectInputStream(connection.getInputStream());
-
-			oos.writeObject(login);
-			oos.flush();
-			
-			login = (Message) ois.readObject();
-			if(login.isResponse()){
-				Response response = (Response) login.getAction();
-				if(response == Response.OK) {
-					login = createMessage(Request.AUTH, password, dest);
-					oos.writeObject(login);
-					
-					//TODO continue here
+			try{
+				NodeInfo dest = rh.getNodesList().iterator().next();
+				Message login = createMessage(Request.LOGIN, password, dest);
+	
+				InetSocketAddress sa = dest.getAddress();
+				connection = new Socket(sa.getHostName(), sa.getPort());
+				oos = new ObjectOutputStream(connection.getOutputStream());
+				ois = new ObjectInputStream(connection.getInputStream());
+	
+				oos.writeObject(login);
+				oos.flush();
+				
+				login = (Message) ois.readObject();
+				if(login.isResponse()){
+					Response response = (Response) login.getAction();
+					if(response == Response.OK) {
+						//Successfully logged in
+						return;
+					}
 				}
-				//TODO: to be continued...
-			} 
-			
-			oos.close();
-			ois.close();
-			connection.close();
+			}finally{
+				if(oos != null)
+					if(!connection.isOutputShutdown())
+						oos.close();
+				if(ois != null)
+					if(!connection.isInputShutdown())
+						ois.close();
+				if(connection != null)
+					if(!connection.isClosed())
+						connection.close();
+			}
 		}
 	}
 	
