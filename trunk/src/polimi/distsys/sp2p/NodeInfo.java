@@ -22,6 +22,12 @@ public class NodeInfo {
 		address = sn.getSocketAddress();
 		isSuper = sn instanceof SuperNode;
 	}
+	
+	public NodeInfo(PublicKey pk, InetSocketAddress sock, boolean isSuper){
+		publicKey = pk;
+		address = sock;
+		this.isSuper = isSuper;
+	}
 
 	public PublicKey getPublicKey() {
 		return publicKey;

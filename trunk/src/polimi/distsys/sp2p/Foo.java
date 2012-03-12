@@ -1,15 +1,29 @@
 package polimi.distsys.sp2p;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.security.GeneralSecurityException;
+import java.security.KeyPair;
 import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
+import java.security.PublicKey;
 import java.util.Scanner;
+
+import polimi.distsys.sp2p.util.Serializer;
 
 public class Foo {
 
 	/**
 	 * @param args
+	 * @throws IOException 
+	 * @throws ClassNotFoundException 
+	 * @throws GeneralSecurityException 
 	 */
-	public static void main(String[] args) {
+	public static void main(String[] args) throws IOException, ClassNotFoundException, GeneralSecurityException {
 		
 		Scanner scanner = new Scanner(System.in);
 		
@@ -19,8 +33,48 @@ public class Foo {
 	
 	if(Integer.valueOf(args[0]) == 1) {
 		// caso supernodo
+	    InputStream is = Foo.class.getResourceAsStream("supernode.info");
+	    PrivateKey priv;
+	    PublicKey pub;
+	    int port;
+	    if(is == null){
+	    	KeyPair kp = SecurityHandler.getKeypair();
+	    	priv = kp.getPrivate();
+	    	pub = kp.getPublic();
+	    	port = 9876;
+	    	FileOutputStream fos = new FileOutputStream("supernode.info");
+	    	StringBuilder sb = new StringBuilder();
+	    	sb.append(
+	    			Serializer.byteArrayToHexString(
+	    					Serializer.serialize(pub)
+					)
+			);
+	    	sb.append(":");
+	    	sb.append(
+	    			Serializer.byteArrayToHexString(
+	    					Serializer.serialize(priv)
+					)
+			);
+	    	sb.append(":");
+	    	sb.append(
+	    			port
+			);
+	    	fos.write(sb.toString().getBytes());
+	    	fos.close();
+	    }else{
+	    	Scanner sc = new Scanner(is);
+	    	String[] tmp = sc.nextLine().split(":");
+	    	pub = Serializer.deserialize(
+	    			Serializer.hexStringToByteArray(tmp[0]), 
+	    			PublicKey.class);
+	    	priv = Serializer.deserialize(
+	    			Serializer.hexStringToByteArray(tmp[1]), 
+	    			PrivateKey.class);
+	    	port = Integer.parseInt(tmp[2]);
+	    }
+	    	
 		try {
-			SuperNode s = new SuperNode(9876);
+			SuperNode s = new SuperNode(port, pub, priv);
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();

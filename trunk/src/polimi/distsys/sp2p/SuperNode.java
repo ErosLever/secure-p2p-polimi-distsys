@@ -4,12 +4,22 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.InetSocketAddress;
-import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.channels.SocketChannel;
 import java.security.GeneralSecurityException;
-import java.util.HashMap;
+import java.security.KeyPair;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.util.Arrays;
+import java.util.Map;
+import java.util.TreeMap;
+
+import javax.crypto.SecretKey;
 
 import polimi.distsys.sp2p.Message.Request;
+import polimi.distsys.sp2p.Message.Response;
+import polimi.distsys.sp2p.util.Listener;
+import polimi.distsys.sp2p.util.Listener.ListenerCallback;
 
 
 /**
@@ -20,12 +30,11 @@ import polimi.distsys.sp2p.Message.Request;
  * @author Ale
  *
  */
-public class SuperNode extends Node {
+public class SuperNode extends Node implements ListenerCallback {
 	
-	private HashMap<String, byte[]> listaKey = new HashMap<String, byte[]>();
-	
-	//da vedere come fare a riempirla quando inizializziamo i supernodi
-	private HashMap<String,byte[]> listaPassword = new HashMap<String, byte[]>();
+	@SuppressWarnings("unused")
+	private final Listener listener;
+	private Map<NodeInfo,byte[]> credentials = new TreeMap<NodeInfo, byte[]>();
 	
 	
 	public SuperNode() throws IOException {
@@ -35,109 +44,23 @@ public class SuperNode extends Node {
 	}
 	
 	public SuperNode(final int port) throws IOException {
-		super(port);
-		
-		listen();		
+		this(port, SecurityHandler.getKeypair());
+	}	
+	
+	public SuperNode(final int port, final KeyPair kp) throws IOException{
+		this(port, kp.getPublic(), kp.getPrivate());
 	}
 	
-	public void listen() {
-
-		try {
-
-			ServerSocket serverSocket = new ServerSocket();
-			serverSocket.bind(new InetSocketAddress(myPort));
-			
-			while (true) {
-
-				//bloccante va creato un thread nuovo per ogni accept
-				Socket connection = serverSocket.accept();
-
-				ObjectInputStream ois = new ObjectInputStream(connection.getInputStream());
-				ObjectOutputStream oos = new ObjectOutputStream(connection.getOutputStream());
-
-
-				Message msg = (Message) ois.readObject();
-				Request req = (Request) msg.getAction();
-
-				switch(req) {
-				case LOGIN:
-
-					if(!listaKey.containsKey(msg.getUserID())) {
-
-						byte[] tmp = secretKeyGen(msg.getPublicKey());
-						listaKey.put(msg.getUserID(), tmp);
-
-					}
-
-					msg.setResponse(Response.OK);
-					msg.setPublicKey(getPublicKey());
-
-					break;
-
-				case AUTH: 
-					
-					System.out.println("son arrivato all auth");
-					
-					if(!listaKey.containsKey(msg.getUserID())) {
-						msg.setResponse(Response.NOSECRET);
-						break;
-
-					} else {
-
-						byte[] hashCriptato = msg.getPayLoad();
-						byte[] hashPass = SecurityHandler.decryptMessage(listaKey.get(msg.getUserID()), hashCriptato);
-						
-						
-						
-						System.out.println(new String(hashPass));
-
-						if(listaPassword.containsKey(msg.getUserID()) && listaPassword.get(msg.getUserID()).equals(hashPass)) {
-							msg.setResponse(Response.SUCCESS);
-							//TODO: qui dovremmo generare un token di sessione?
-						}
-
-						else {
-							msg.setResponse(Response.FAIL);
-							
-							System.out.println("fail check");
-						}
-
-						break; 
-					}
-				
-				default:
-					//gestione casi
-					System.out.println("Bad Request");
-
-				}
-
-				oos.writeObject(msg);
-				oos.flush();
-
-
-				oos.close();
-				ois.close();
-				connection.close();
-			}
-
-
-		} 
-		catch (IOException e) {
-		    System.out.println("Could not listen on port");
-		    System.exit(-1);
-		    
-		} catch (ClassNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-
-		
+	public SuperNode(final int port, final PublicKey pub, final PrivateKey priv) throws IOException{
+		super(port, pub, priv);
+		listener = new Listener(port, this);
 	}
 
 	private class ConnectionHandler extends Thread {
 		
 		private final Socket socket;
 		private final NodeInfo remote;
+		private final SecretKey sharedKey;
 		
 		private ConnectionHandler(final Socket conn) throws GeneralSecurityException{
 			socket = conn;
@@ -146,83 +69,99 @@ public class SuperNode extends Node {
 			);
 			if(remote == null)
 				throw new GeneralSecurityException("Unauthorized connection");
+			sharedKey = rh.getSharedKey(remote);
 		}
 		
 		@Override
 		public void start(){
 			
-			ObjectInputStream ois = new ObjectInputStream(socket.getInputStream());
-			ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
+			ObjectInputStream ois = null;
+			ObjectOutputStream oos = null;
 			
-			while (true) {
-
-
-
-				Message msg = (Message) ois.readObject();
-				Request req = (Request) msg.getAction();
-
-				switch(req) {
-				case LOGIN:
-
-					if(!listaKey.containsKey(msg.getUserID())) {
-
-						byte[] tmp = secretKeyGen(msg.getPublicKey());
-						listaKey.put(msg.getUserID(), tmp);
-
-					}
-
-					msg.setResponse(Response.OK);
-					msg.setPublicKey(getPublicKey());
-
-					break;
-
-				case AUTH: 
-					
-					System.out.println("son arrivato all auth");
-					
-					if(!listaKey.containsKey(msg.getUserID())) {
-						msg.setResponse(Response.NOSECRET);
-						break;
-
-					} else {
-
-						byte[] hashCriptato = msg.getPayLoad();
-						byte[] hashPass = SecurityHandler.decryptMessage(listaKey.get(msg.getUserID()), hashCriptato);
-						
-						
-						
-						System.out.println(new String(hashPass));
-
-						if(listaPassword.containsKey(msg.getUserID()) && listaPassword.get(msg.getUserID()).equals(hashPass)) {
-							msg.setResponse(Response.SUCCESS);
-							//TODO: qui dovremmo generare un token di sessione?
-						}
-
-						else {
-							msg.setResponse(Response.FAIL);
+			try {
+				
+				ois = new ObjectInputStream(socket.getInputStream());
+				oos = new ObjectOutputStream(socket.getOutputStream());
+				
+				while (true) {
+	
+					try{
+						Message msg = (Message) ois.readObject();
+						Request req = (Request) msg.getAction();
+		
+						switch(req) {
+						case LOGIN:
+		
+							if( !credentials.containsKey(remote) ){
+								msg = SuperNode.this.createMessage(
+										Response.FAIL, 
+										"Remote client is not one of my clients".getBytes(), 
+										remote
+								);
+								break;
+							}
 							
-							System.out.println("fail check");
-						}
+							byte[] hashedPassword = msg.decryptPayload(sharedKey);
+							if( ! Arrays.equals( credentials.get(remote), hashedPassword) ){
+								msg = SuperNode.this.createMessage(
+										Response.FAIL, 
+										"Wrong password".getBytes(), 
+										remote
+								);
+								break;
+							}
+							
+							msg = SuperNode.this.createMessage(Response.OK, "OK".getBytes(), remote);
+							break;
+		
+						default:
 
-						break; 
+							msg = SuperNode.this.createMessage(Response.FAIL, "Bad Request".getBytes(), remote);
+						}
+		
+						oos.writeObject(msg);
+						oos.flush();
+					}catch(ClassNotFoundException cnfe){
+						cnfe.printStackTrace();
+					} catch (GeneralSecurityException e) {
+						e.printStackTrace();
+					}
+	
+				}
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}finally{
+				if(oos != null)
+					if(!socket.isOutputShutdown())
+						try {
+							oos.close();
+						} catch (IOException e) {
+						}
+				if(ois != null)
+					if(!socket.isInputShutdown())
+						try {
+							ois.close();
+						} catch (IOException e) {
+						}
+				if(!socket.isClosed())
+					try {
+						socket.close();
+					} catch (IOException e) {
 					}
 				
-				default:
-					//gestione casi
-					System.out.println("Bad Request");
-
-				}
-
-				oos.writeObject(msg);
-				oos.flush();
-
 			}
-			
-			oos.close();
-			ois.close();
-			connection.close();
 			
 		}
 		
+	}
+
+	@Override
+	public void handleRequest(SocketChannel client) {
+		try {
+			new ConnectionHandler(client.socket()).start();
+		} catch (GeneralSecurityException e) {
+			e.printStackTrace();
+		}
 	}
 }
