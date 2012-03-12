@@ -50,7 +50,7 @@ public class RoutingHandler {
 		// format: "host:port:pubkey" pubkey is escaped in hex
 		
 		Scanner sc = new Scanner(superNodesList);
-		while(sc.hasNextLine()){
+		while(sc.hasNext()){
 			try {
 				String[] tmp = sc.nextLine().split(":");
 				String host = tmp[0];
