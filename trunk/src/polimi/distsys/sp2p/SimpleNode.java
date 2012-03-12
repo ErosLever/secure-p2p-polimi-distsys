@@ -6,7 +6,10 @@ import java.io.ObjectOutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.security.GeneralSecurityException;
+import java.security.KeyPair;
 import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
+import java.security.PublicKey;
 
 import polimi.distsys.sp2p.Message.Request;
 import polimi.distsys.sp2p.Message.Response;
@@ -29,11 +32,16 @@ public class SimpleNode extends Node {
 	
 
 	public SimpleNode(final String userID, final String password) throws IOException, NoSuchAlgorithmException {
-		this( getRandomPort(), userID, password );
+		this( getRandomPort(), userID, password, SecurityHandler.getKeypair() );
 	}
 	
-	public SimpleNode(final int port, final String userID, final String password) throws IOException, NoSuchAlgorithmException {
-		super( port );
+	public SimpleNode(final int port, final String userID, final String password, final KeyPair kp) throws IOException, NoSuchAlgorithmException {
+		this(port, userID, password, kp.getPublic(), kp.getPrivate());
+	}
+
+	public SimpleNode(final int port, final String userID, final String password, 
+			final PublicKey pub, final PrivateKey priv) throws IOException, NoSuchAlgorithmException {
+		super( port, pub, priv );
 		
 		this.userID = userID;
 		this.password = SecurityHandler.hashFunction( password );

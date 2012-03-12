@@ -1,5 +1,7 @@
 package polimi.distsys.sp2p;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetAddress;
@@ -68,9 +70,8 @@ public abstract class Node {
 			throw new IOException("You are not connected to a network");
 		}
 		
-		InputStream defaultt = this.getClass().getClassLoader().getResourceAsStream(supernodes);
-		if(defaultt != null)
-			rh = new RoutingHandler(this,defaultt);
+		if(new File(supernodes).exists())
+			rh = new RoutingHandler(this,new FileInputStream(supernodes));
 		else
 			rh = new RoutingHandler(this);
 		

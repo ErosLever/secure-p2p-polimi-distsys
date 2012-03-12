@@ -36,9 +36,9 @@ public class Message implements Serializable {
 		action = act;
 		//nodeInfo = ni;
 		
-		SecretKeySpec keySpec = new SecretKeySpec(sk.getEncoded(), "AES");
+		//SecretKeySpec keySpec = new SecretKeySpec(sk.getEncoded(), "AES");
 		Cipher cipher = Cipher.getInstance("AES");
-		cipher.init(Cipher.ENCRYPT_MODE, keySpec);
+		cipher.init(Cipher.ENCRYPT_MODE, sk);
 		
 		this.payload = cipher.doFinal(payload);
 		hash = MessageDigest.getInstance("SHA-1").digest(payload);

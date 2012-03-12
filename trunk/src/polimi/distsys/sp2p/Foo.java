@@ -1,8 +1,5 @@
 package polimi.distsys.sp2p;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -91,7 +88,47 @@ public class Foo {
 		String psw = scanner.nextLine();
 		SimpleNode s;
 		try {
-			s = new SimpleNode(id, psw);
+		    InputStream is = Foo.class.getResourceAsStream("simplenode.info");
+		    PrivateKey priv;
+		    PublicKey pub;
+		    int port;
+		    if(is == null){
+		    	KeyPair kp = SecurityHandler.getKeypair();
+		    	priv = kp.getPrivate();
+		    	pub = kp.getPublic();
+		    	port = 9876;
+		    	FileOutputStream fos = new FileOutputStream("simplenode.info");
+		    	StringBuilder sb = new StringBuilder();
+		    	sb.append(
+		    			Serializer.byteArrayToHexString(
+		    					Serializer.serialize(pub)
+						)
+				);
+		    	sb.append(":");
+		    	sb.append(
+		    			Serializer.byteArrayToHexString(
+		    					Serializer.serialize(priv)
+						)
+				);
+		    	sb.append(":");
+		    	sb.append(
+		    			port
+				);
+		    	fos.write(sb.toString().getBytes());
+		    	fos.close();
+		    }else{
+		    	Scanner sc = new Scanner(is);
+		    	String[] tmp = sc.nextLine().split(":");
+		    	pub = Serializer.deserialize(
+		    			Serializer.hexStringToByteArray(tmp[0]), 
+		    			PublicKey.class);
+		    	priv = Serializer.deserialize(
+		    			Serializer.hexStringToByteArray(tmp[1]), 
+		    			PrivateKey.class);
+		    	port = Integer.parseInt(tmp[2]);
+		    }
+
+		    s = new SimpleNode(port, id, psw, pub, priv);
 			s.join();
 		} catch (NoSuchAlgorithmException e) {
 			// TODO Auto-generated catch block
