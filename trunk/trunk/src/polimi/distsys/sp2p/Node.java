@@ -47,12 +47,18 @@ public abstract class Node {
 	}
 
 
-// inizializzo il nodo su una porta specifica
-	public Node( final int port) throws IOException {
+	protected Node( final int port) throws IOException {
+		this(port, SecurityHandler.getKeypair());
+	}
+	
+	private Node( final int port, KeyPair kp) throws IOException{
+		this( port, kp.getPublic(), kp.getPrivate());
+	}
+	
+	protected Node( final int port, PublicKey pubKey, PrivateKey privKey) throws IOException{
 		
-		final KeyPair kp = SecurityHandler.getKeypair();
-		privateKey = kp.getPrivate();
-		publicKey = kp.getPublic();
+		privateKey = privKey;
+		publicKey = pubKey;
 		
 		myPort = port;
 		
