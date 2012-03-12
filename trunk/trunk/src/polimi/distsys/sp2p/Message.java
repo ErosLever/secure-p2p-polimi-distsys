@@ -36,7 +36,15 @@ public class Message implements Serializable {
 		action = act;
 		//nodeInfo = ni;
 		
-		SecretKeySpec keySpec = new SecretKeySpec(sk.getEncoded(), "AES");
+		byte[] sharedkey = new byte[128];
+		int count = 0;
+		while(count < 128){
+			int toCopy = Math.min(128-count, sk.getEncoded().length);
+			System.arraycopy(sk.getEncoded(), 0, sharedkey, 0, toCopy);
+			count -= toCopy;
+		}
+		
+		SecretKeySpec keySpec = new SecretKeySpec(sharedkey, "AES");
 		Cipher cipher = Cipher.getInstance("AES");
 		cipher.init(Cipher.ENCRYPT_MODE, keySpec);
 		
