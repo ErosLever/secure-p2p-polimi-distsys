@@ -9,7 +9,6 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
-import java.security.Security;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -18,8 +17,6 @@ import javax.crypto.KeyAgreement;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
-
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
 
 public class SecurityHandler {
@@ -60,9 +57,7 @@ public class SecurityHandler {
 	 */
 	public static SecretKey secretKeyGen(PrivateKey myPrivKey, PublicKey hisPubKey) throws GeneralSecurityException {
 
-		
-		Security.addProvider(new BouncyCastleProvider());
-		KeyAgreement ka = KeyAgreement.getInstance("DH","BC");
+		KeyAgreement ka = KeyAgreement.getInstance("DH");
 		ka.init(myPrivKey);
 		ka.doPhase(hisPubKey, true);
 		return ka.generateSecret("AES");
