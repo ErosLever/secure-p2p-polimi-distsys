@@ -25,6 +25,7 @@ public class Message implements Serializable {
 	 * 
 	 */
 	private static final long serialVersionUID = 3955511950935291985L;
+	private static final int KEY_SIZE = 128/8;
 	private final Action action;
 	//private final NodeInfo nodeInfo;
 	private final byte[] payload;
@@ -36,13 +37,7 @@ public class Message implements Serializable {
 		action = act;
 		//nodeInfo = ni;
 		
-		byte[] sharedkey = new byte[128];
-		int count = 0;
-		while(count < 128){
-			int toCopy = Math.min(128-count, sk.getEncoded().length);
-			System.arraycopy(sk.getEncoded(), 0, sharedkey, 0, toCopy);
-			count -= toCopy;
-		}
+		byte[] sharedkey = extendSharedKeyToSize(sk, KEY_SIZE);
 		
 		SecretKeySpec keySpec = new SecretKeySpec(sharedkey, "AES");
 		Cipher cipher = Cipher.getInstance("AES");
@@ -70,7 +65,9 @@ public class Message implements Serializable {
 	}
 */
 	public byte[] decryptPayload(SecretKey sk) throws GeneralSecurityException {
-		SecretKeySpec keySpec = new SecretKeySpec(sk.getEncoded(), "AES");
+		
+		byte[] sharedkey = extendSharedKeyToSize(sk, KEY_SIZE);
+		SecretKeySpec keySpec = new SecretKeySpec(sharedkey, "AES");
 		Cipher cipher = Cipher.getInstance("AES");
 		cipher.init(Cipher.DECRYPT_MODE, keySpec);
 		byte[] decrypted = cipher.doFinal(payload);
@@ -82,7 +79,16 @@ public class Message implements Serializable {
 		return decrypted;
 	}
 
-	
+	private static byte[] extendSharedKeyToSize(final SecretKey sk, final int size){
+		final byte[] sharedkey = new byte[size];
+		int count = 0;
+		while(count < size){
+			final int toCopy = Math.min(size-count, sk.getEncoded().length);
+			System.arraycopy(sk.getEncoded(), 0, sharedkey, count, toCopy);
+			count += toCopy;
+		}
+		return sharedkey;
+	}
 	
 	
 	public interface Action {}
