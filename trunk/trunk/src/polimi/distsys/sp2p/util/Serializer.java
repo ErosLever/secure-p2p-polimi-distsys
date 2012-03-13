@@ -22,6 +22,8 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.xml.bind.DatatypeConverter;
+
 /**
  *
  * @author eros
@@ -123,11 +125,21 @@ public class Serializer {
     }
     
     public static String byteArrayToHexString(byte[] buf){
-        return new javax.xml.bind.annotation.adapters.HexBinaryAdapter().marshal(buf);
+        //return new javax.xml.bind.annotation.adapters.HexBinaryAdapter().marshal(buf);
+    	return DatatypeConverter.printHexBinary(buf);
     }
     
     public static byte[] hexStringToByteArray(String s){
-        return new javax.xml.bind.annotation.adapters.HexBinaryAdapter().unmarshal(s);
+        //return new javax.xml.bind.annotation.adapters.HexBinaryAdapter().unmarshal(s);
+    	return DatatypeConverter.parseHexBinary(s);
+    }
+    
+    public static String base64Encode(byte[] buf){
+    	return DatatypeConverter.printBase64Binary(buf);
+    }
+    
+    public static byte[] base64Decode(String encoded){
+    	return DatatypeConverter.parseBase64Binary(encoded);
     }
 
 }
