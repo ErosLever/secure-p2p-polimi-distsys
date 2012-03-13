@@ -7,13 +7,14 @@ package polimi.distsys.sp2p.util;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.FilterInputStream;
+import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.lang.reflect.Field;
-import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.util.Arrays;
@@ -31,11 +32,10 @@ import javax.xml.bind.DatatypeConverter;
 public class Serializer {
 
     public static void serialize(Object o, OutputStream out) throws IOException{
-        ObjectOutputStream oos = new ObjectOutputStream(out);
         synchronized(o){
-            oos.reset();
-            oos.writeObject(o);
-            oos.flush();
+            byte[] serialized = serialize(o);
+            out.write(serialized);
+            out.flush();
             System.out.println("Written obj: "+o);
         }
     }
@@ -54,6 +54,7 @@ public class Serializer {
         oos.reset();
         synchronized(o){
             oos.writeObject(o);
+            oos.flush();
             oos.close();
         }
         baos.close();
@@ -70,9 +71,11 @@ public class Serializer {
     }
 
     public static <E>E deserialize(InputStream in, Class<E> type) throws IOException, ClassNotFoundException {
-        ObjectInputStream ois = new ObjectInputStream(in);
+    	ObjectInputStream ois = new ObjectInputStream(
+    			new FilterCloseInputStream(in));
         Object o = ois.readObject();
         System.out.println("Received obj: "+o);
+        ois.close();
         return type.cast(o);
     }
 
@@ -142,4 +145,27 @@ public class Serializer {
     	return DatatypeConverter.parseBase64Binary(encoded);
     }
 
+	public static class FilterCloseInputStream extends FilterInputStream {
+		
+		public FilterCloseInputStream(InputStream in) {
+			super(in);
+			// TODO Auto-generated constructor stub
+		}
+
+		public void close(){
+			//do nothing
+		}
+	}
+	
+	public static class FilterCloseOutputStream extends FilterOutputStream {
+		
+		public FilterCloseOutputStream(OutputStream in) {
+			super(in);
+			// TODO Auto-generated constructor stub
+		}
+
+		public void close(){
+			//do nothing
+		}
+	}
 }
