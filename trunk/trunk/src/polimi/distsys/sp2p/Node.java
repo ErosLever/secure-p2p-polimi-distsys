@@ -3,19 +3,18 @@ package polimi.distsys.sp2p;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.net.UnknownHostException;
+import java.net.ServerSocket;
 import java.security.GeneralSecurityException;
 import java.security.KeyPair;
 import java.security.PrivateKey;
 import java.security.PublicKey;
-import java.util.Random;
 
 import javax.crypto.SecretKey;
 
 import polimi.distsys.sp2p.Message.Action;
+import polimi.distsys.sp2p.util.PortChecker;
 
 /**
  * 
@@ -27,9 +26,7 @@ import polimi.distsys.sp2p.Message.Action;
  */
 public abstract class Node {
 	
-	//range di porte per possiam metterle come parametro di init ( un po piu elegante )
-	public static final int minPort = 40000;
-	public static final int maxPort = 50000;
+
 	public static final String supernodes = "superNodes.list";
 	
 	protected final RoutingHandler rh;
@@ -40,35 +37,38 @@ public abstract class Node {
 	//inizializzo il nodo segnando l'ip locale e la prima porta per la connessione
 	protected final int myPort;
 	protected final InetAddress myIp;
+	protected final ServerSocket socket;
 
 	public Node() throws IOException {
 		
 		// Avoid code duplication :D
-		this( getRandomPort() );
+		this( PortChecker.getBoundedServerSocketChannel().socket() );
 		
 	}
+	
+	public Node(ServerSocket sock) throws IOException{
+		this( sock, SecurityHandler.getKeypair() );
+	}
 
 
-	protected Node( final int port) throws IOException {
-		this(port, SecurityHandler.getKeypair());
+	protected Node(final int port) throws IOException {
+		
+		this(PortChecker.getBoundedServerSocketChannelOrNull(port).socket());
+		
 	}
 	
-	private Node( final int port, KeyPair kp) throws IOException{
-		this( port, kp.getPublic(), kp.getPrivate());
+	private Node( final ServerSocket sock, KeyPair kp) throws IOException{
+		this( sock, kp.getPublic(), kp.getPrivate());
 	}
 	
-	protected Node( final int port, PublicKey pubKey, PrivateKey privKey) throws IOException{
+	protected Node( final ServerSocket sock, PublicKey pubKey, PrivateKey privKey) throws IOException{
 		
 		privateKey = privKey;
 		publicKey = pubKey;
 		
-		myPort = port;
-		
-		try { 
-			myIp = InetAddress.getLocalHost();
-		} catch(UnknownHostException e) {
-			throw new IOException("You are not connected to a network");
-		}
+		socket = sock;
+		myIp = sock.getInetAddress();
+		myPort = sock.getLocalPort();
 		
 		if(new File(supernodes).exists())
 			rh = new RoutingHandler(this,new FileInputStream(supernodes));
@@ -85,10 +85,6 @@ public abstract class Node {
 	protected PublicKey getPublicKey() {
 		return publicKey;
 		
-	}
-	
-	protected static int getRandomPort(){
-		return minPort + (new Random()).nextInt(maxPort - minPort);
 	}
 	
 	public InetSocketAddress getSocketAddress(){
