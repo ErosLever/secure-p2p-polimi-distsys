@@ -27,8 +27,20 @@ import javax.crypto.spec.SecretKeySpec;
 
 import polimi.distsys.sp2p.util.PortChecker;
 
+/**
+ * 
+ * @author eros
+ * 
+ * EncryptedSocketFactory is intended to, given a KeyPair 
+ * <PublicKey, PrivateKey>, use them to create EncryptedSocket
+ * both as client and server.
+ *
+ */
 public class EncryptedSocketFactory {
 	
+	/**
+	 * Ciphering configuration
+	 */
 	private static final int SYMM_KEY_SIZE = 128/8;
 	private static final String SYMM_ALGO = "AES";
 	
@@ -69,6 +81,15 @@ public class EncryptedSocketFactory {
 			outputStream = initOutputStream();
 		}
 		
+		/**
+		 * Since the handshake varies depending on client/server,
+		 * I let it an abstract method 
+		 *  
+		 * @param arg
+		 * @return
+		 * @throws GeneralSecurityException
+		 * @throws IOException
+		 */
 		protected abstract SecretKey handshake(E arg) throws GeneralSecurityException, IOException;
 		
 		protected InputStream initInputStream() throws GeneralSecurityException, IOException {
@@ -93,6 +114,13 @@ public class EncryptedSocketFactory {
 		
 	}
 	
+	/**
+	 * Assuming we already know the PublicKey of the receiver,
+	 * we need only that info to communicate
+	 * 
+	 * @author eros
+	 *
+	 */
 	public class EncryptedClientSocket extends EncryptedSocket<PublicKey> {
 		
 		private final PublicKey hisPub;
@@ -102,10 +130,24 @@ public class EncryptedSocketFactory {
 			this.hisPub = hisPub;
 		}
 		
+		/**
+		 * This sends the local PublicKey asymmetrically encrypted 
+		 * with the remote PublicKey, the remote server will 
+		 * authenticate us with the local PublicKey, and send back 
+		 * a challenge which is the SecretKey (session key for AES
+		 * symmetric encryption) that is encrypted with both its
+		 * PrivateKey and the local PublicKey  
+		 */
 		protected SecretKey handshake(PublicKey hisPub) throws GeneralSecurityException, IOException {
 			
 			Cipher cipher = Cipher.getInstance(ASYMM_ALGO);
 			byte[] encodedKey = myPub.getEncoded();
+			
+			/* encodedKey would normally be ASYMM_KEY_SIZE bytes
+			 * but asymmetric encryption supports at maximum
+			 * (ASYMM_KEY_SIZE - 11) so we have to split the encryption
+			 * in two phases. 
+			 */
 			int count = 0, blockSize = ASYMM_KEY_SIZE -11;
 			while(count + blockSize < encodedKey.length){
 				cipher.init(Cipher.ENCRYPT_MODE, hisPub);
@@ -119,6 +161,18 @@ public class EncryptedSocketFactory {
 				cipher.doFinal(encodedKey, count, encodedKey.length - count)	
 			);
 			socket.getOutputStream().flush();
+			
+			/* local PublicKey sent encrypted with remote PublicKey
+			 * now let's prepare to receive the session key
+			 */
+			
+			/* Asymmetric encryption allow us to decrypt at most
+			 * ASYMM_KEY_SIZE bytes, but we will receive two blocks
+			 */
+			
+			/* ByteArrayOutputStream is needed because we can't know
+			 * in advance what will be the decrypted size
+			 */
 			
 			byte[] received = new byte[ASYMM_KEY_SIZE];
 			ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -136,11 +190,16 @@ public class EncryptedSocketFactory {
 			
 			received = baos.toByteArray();
 			
+			// decrypted with the local PrivateKey
+			
 			Cipher cipher2 = Cipher.getInstance(ASYMM_ALGO);
 			cipher2.init(Cipher.DECRYPT_MODE, hisPub);
 			received = cipher2.doFinal(received);
 			
+			// decrypted with the remote PublicKey
+			
 			SecretKeySpec sessionKey = new SecretKeySpec(received, SYMM_ALGO);
+			// Parsed SecretKey from byte array
 			
 			return sessionKey;
 		}
@@ -157,9 +216,18 @@ public class EncryptedSocketFactory {
 			super( sock , pubKeyList);
 		}
 		
+		/**
+		 * Assuming we already know the PublicKey of the possible receivers,
+		 * we need to discover who is talking with us, to do that we will check
+		 * the received PublicKey if it is within the allowed PublicKeys 
+		 * 
+		 */
 		@Override
 		protected SecretKey handshake(Set<PublicKey> pubKeyList) throws GeneralSecurityException, IOException{
 			
+			/* Let's first decrypt the remote (client) PublicKey
+			 * which is encrypted with our PubliKey
+			 */
 			Cipher cipher = Cipher.getInstance(ASYMM_ALGO);
 			byte[] received = new byte[ASYMM_KEY_SIZE];
 			ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -173,22 +241,33 @@ public class EncryptedSocketFactory {
 			}
 			
 			received = baos.toByteArray();
+			
+			// decryped the remote PublicKey
+			
 			X509EncodedKeySpec pubKeySpec = new X509EncodedKeySpec(received);
 			PublicKey hisPub = KeyFactory.getInstance(ASYMM_ALGO).generatePublic(pubKeySpec);
 			
+			// Parsed the remote PublicKey from the byte array
+			
+			// check if it's a valid PublicKey (allowed to communicate with us)
 			if( ! pubKeyList.contains( hisPub )){
 				throw new GeneralSecurityException("Unknown PublicKey supplied by client");
 			}
 			
+			// generate a session key
 			KeyGenerator kgen = KeyGenerator.getInstance(SYMM_ALGO);
 			kgen.init( SYMM_KEY_SIZE * 8 );
 			SecretKey sessionKey = kgen.generateKey();
 			
 			byte[] encodedKey = sessionKey.getEncoded();
 			
+			// encrypt it with local PrivateKey
+			
 			Cipher cipher1 = Cipher.getInstance(ASYMM_ALGO);
 			cipher1.init(Cipher.ENCRYPT_MODE, myPriv);
 			encodedKey = cipher1.doFinal(encodedKey);
+			
+			// encrypt with remote PublicKey
 			
 			Cipher cipher2 = Cipher.getInstance(ASYMM_ALGO);
 			int blockSize = ASYMM_KEY_SIZE - 11;
@@ -199,6 +278,8 @@ public class EncryptedSocketFactory {
 				socket.getOutputStream().write(toWrite);
 			}
 			socket.getOutputStream().flush();
+			
+			// session key sent to the client
 			
 			return sessionKey;
 		}
