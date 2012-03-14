@@ -26,6 +26,7 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
 import polimi.distsys.sp2p.util.PortChecker;
+import polimi.distsys.sp2p.util.Serializer;
 
 /**
  * 
@@ -50,6 +51,10 @@ public class EncryptedSocketFactory {
 	private final PrivateKey myPriv;
 	private final PublicKey myPub;
 	
+	public EncryptedSocketFactory(final KeyPair kp){
+		this(kp.getPrivate(), kp.getPublic());
+	}
+
 	public EncryptedSocketFactory(final PrivateKey myPriv, final PublicKey myPub){
 		this.myPriv = myPriv;
 		this.myPub = myPub;
@@ -110,6 +115,30 @@ public class EncryptedSocketFactory {
 		
 		public OutputStream getOutputStream(){
 			return outputStream;
+		}
+		
+		public void close(){
+			// for some unknown reason we have to first close the output
+			if(!socket.isOutputShutdown())
+				try {
+					outputStream.flush();
+					outputStream.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			// close input only after the output 
+			if(!socket.isInputShutdown())
+				try {
+					inputStream.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			try {
+				socket.close();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 		}
 		
 	}
@@ -287,66 +316,90 @@ public class EncryptedSocketFactory {
 	}
 	
 	public static void main(String[] args) throws IOException, GeneralSecurityException{
-		KeyPairGenerator kpg = KeyPairGenerator.getInstance(ASYMM_ALGO);
-		kpg.initialize(ASYMM_KEY_SIZE*8);
-		KeyPair kp = kpg.genKeyPair();
-		PublicKey simplePub = kp.getPublic();
-		System.out.println("simplepub "+simplePub.getEncoded().length*8);
-		PrivateKey simplePriv = kp.getPrivate();
-		System.out.println("simplepriv "+simplePriv.getEncoded().length*8);
 		
-		class MyThread extends Thread{
-			private PublicKey pk;
-			public ServerSocket ss;
-			private PrivateKey priv;
-			public final PublicKey pub;
+		class SuperNodeThread extends Thread{
+			private final Set<PublicKey> pklist;
+			private final ServerSocket ss;
+			private final EncryptedSocketFactory esf;
 			
-			public MyThread(PublicKey pk) throws NoSuchAlgorithmException{
-				this.pk = pk;
-				ss = PortChecker.getBoundedServerSocketChannel(8192).socket();
-				KeyPairGenerator kpg = KeyPairGenerator.getInstance(ASYMM_ALGO);
-				kpg.initialize(ASYMM_KEY_SIZE*8);
-				KeyPair kp = kpg.genKeyPair();
-				pub = kp.getPublic();
-				System.out.println("superpub "+pub.getEncoded().length*8);
-				priv = kp.getPrivate();
-				System.out.println("superpriv "+priv.getEncoded().length*8);
-
+			
+			public SuperNodeThread(EncryptedSocketFactory esf, Set<PublicKey> pklist) throws NoSuchAlgorithmException{
+				this.esf = esf;
+				this.pklist = pklist;
+				this.ss = PortChecker.getBoundedServerSocketChannel().socket();
 			}
+			
 			public void run(){
 				
 				try{
-					Socket s = ss.accept();
-					
-					EncryptedSocketFactory super_esf = new EncryptedSocketFactory(priv, pub);
-					
-					Set<PublicKey> pklist = new HashSet<PublicKey>();
-					pklist.add(pk);
-					
-					EncryptedServerSocket ess = super_esf.getEncryptedServerSocket(s, pklist);
-					
-					byte[] tmp = new byte[4];
-					ess.getInputStream().read(tmp);
-					
-					System.out.println(new String(tmp));
-					ess.getOutputStream().close();
-					
+					//while(true){
+						
+						Socket s = ss.accept();
+						
+						EncryptedServerSocket ess = esf.getEncryptedServerSocket(s, pklist);
+						
+						byte[] tmp = new byte[4];
+						int read = ess.getInputStream().read(tmp,0,4);
+						
+						System.out.println(read);
+						System.out.println(Serializer.byteArrayToHexString(tmp));
+						System.out.println(new String(tmp));
+						ess.close();
+						
+					//}
+				}catch(Exception e){
+					e.printStackTrace();
+				}
+			}
+			
+			public InetSocketAddress getAddress(){
+				return new InetSocketAddress(ss.getInetAddress(), ss.getLocalPort());
+			}
+		}
+		
+		class SimpleNodeThread extends Thread{
+			private final PublicKey superKey;
+			private final InetSocketAddress superAddr;
+			private final EncryptedSocketFactory esf;
+			
+			
+			public SimpleNodeThread(EncryptedSocketFactory esf, PublicKey superKey, InetSocketAddress isa) throws NoSuchAlgorithmException{
+				this.esf = esf;
+				this.superKey = superKey;
+				this.superAddr = isa;
+			}
+			
+			public void run(){
+				
+				try{
+						
+					EncryptedClientSocket ecs = esf.getEncryptedClientSocket(superAddr, superKey);
+					ecs.getOutputStream().write("ciao".getBytes(),0,4);
+					ecs.close();
+						
 				}catch(Exception e){
 					e.printStackTrace();
 				}
 			}
 		}
 		
-		MyThread my = new MyThread(simplePub);
-		my.start();
+		KeyPairGenerator kpg = KeyPairGenerator.getInstance(ASYMM_ALGO);
+		kpg.initialize(ASYMM_KEY_SIZE*8);
+		KeyPair simplekp = kpg.genKeyPair();
+		EncryptedSocketFactory simpleESF = new EncryptedSocketFactory(simplekp);
+
+		kpg.initialize(ASYMM_KEY_SIZE*8);
+		KeyPair superkp = kpg.genKeyPair();
+		EncryptedSocketFactory superESF = new EncryptedSocketFactory(superkp);
+
+		Set<PublicKey> pklist = new HashSet<PublicKey>();
+		pklist.add(simplekp.getPublic());
+		SuperNodeThread superN = new SuperNodeThread(superESF, pklist);
+		superN.start();
 		
-		EncryptedSocketFactory simple_esf = new EncryptedSocketFactory(simplePriv, simplePub);
+		SimpleNodeThread simpleN = new SimpleNodeThread(simpleESF, superkp.getPublic(), superN.getAddress());
+		simpleN.start();
 		
-		EncryptedClientSocket ecs = simple_esf.getEncryptedClientSocket("127.0.0.1", 8192, my.pub);
-		
-		ecs.getOutputStream().write("ciao".getBytes());
-		ecs.getOutputStream().flush();
-		ecs.getOutputStream().close();
 	}
 
 }
