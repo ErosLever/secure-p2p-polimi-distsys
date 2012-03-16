@@ -1,8 +1,13 @@
 package polimi.distsys.sp2p;
 
+import java.io.BufferedInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.security.GeneralSecurityException;
-import java.security.InvalidKeyException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.MessageDigest;
@@ -10,13 +15,8 @@ import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 
-import javax.crypto.BadPaddingException;
-import javax.crypto.Cipher;
-import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.KeyAgreement;
-import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
-import javax.crypto.spec.SecretKeySpec;
 
 
 public class SecurityHandler {
@@ -89,5 +89,65 @@ public class SecurityHandler {
 		}
 		return output;
 		
+	}
+	/**
+	 *  dato un file f crea l'hast di 128 bit utilizzando SHA-1
+	 *  
+	 * @param f file di cui si vuol creare l hash
+	 * @return
+	 */
+	public static byte[] createHash(File f) {
+		
+		FileInputStream is = null;
+		try {
+			
+			is = new FileInputStream(f);
+			
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		BufferedInputStream fileBuffer = new BufferedInputStream(is);
+		
+		return createHash(fileBuffer, 4096);
+	}
+	
+	/**
+	 * crea l'hash del contenuto di un inputstream
+	 * 
+	 * @param in buffer da cui creare l hash
+	 * @param bufferSize dimensione del buffer da utilizzare per la creazione del hash
+	 * @return
+	 */
+	public static byte[] createHash(BufferedInputStream in, int bufferSize) {
+
+		MessageDigest digest;
+		byte [] hash = null;
+
+		try {
+			digest = MessageDigest.getInstance("SHA-1");
+
+			byte [] buffer = new byte[bufferSize];
+			int sizeRead = -1;
+			while ((sizeRead = in.read(buffer)) != -1) {
+				digest.update(buffer, 0, sizeRead);
+			}
+			
+			in.close();
+
+			hash = new byte[digest.getDigestLength()];
+			hash = digest.digest();
+
+		} catch (NoSuchAlgorithmException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace(); 
+
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		return hash;
 	}
 }
