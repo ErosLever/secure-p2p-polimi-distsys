@@ -107,13 +107,15 @@ public class Foo {
 			String id = scanner.nextLine();
 			System.out.println("Inserisci la tua password:");
 			String psw = scanner.nextLine();
+			System.out.println("Inserisci la directory in cui salvare i file");
+			String dir = scanner.nextLine();
 			//TODO: andranno aggiunti dei controlli sull inserimento di nome e password
 
 
-			SimpleNode s = new SimpleNode(port, id, psw, pub, priv);
+			SimpleNode s = new SimpleNode(port, id, psw, dir);
 
 			//start textual gui
-			VisualizationHandler.simpleNodeOptions(s);
+			new VisualizationHandler(s);
 		}
 
 

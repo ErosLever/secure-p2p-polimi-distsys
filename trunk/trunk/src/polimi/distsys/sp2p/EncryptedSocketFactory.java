@@ -315,6 +315,13 @@ public class EncryptedSocketFactory {
 		
 	}
 	
+	
+	/** 
+	 *  TESTING PURPOSE
+	 * @param args
+	 * @throws IOException
+	 * @throws GeneralSecurityException
+	 */
 	public static void main(String[] args) throws IOException, GeneralSecurityException{
 		
 		class SuperNodeThread extends Thread{

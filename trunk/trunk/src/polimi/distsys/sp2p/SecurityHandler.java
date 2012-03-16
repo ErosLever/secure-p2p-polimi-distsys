@@ -6,7 +6,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
+import java.io.ObjectInputStream;
 import java.security.GeneralSecurityException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
@@ -20,7 +20,8 @@ import javax.crypto.SecretKey;
 
 
 public class SecurityHandler {
-
+	
+	//KEY GENERATIONS
 	/**
 	 * metodo per la generazione delle chiavi asimmetriche
 	 * 
@@ -45,7 +46,6 @@ public class SecurityHandler {
 
 	}
 	
-	
 	/**
 	 * metodo che uso esegue fisicamente il Diffie Hellman e
 	 * costruisce il segreto condiviso tra due entita
@@ -63,9 +63,8 @@ public class SecurityHandler {
 		return ka.generateSecret("AES");
 		
 	}
-	
-	
 
+	//HASHING FUNCTIONS
 	/**
 	 * 
 	 * @param input
@@ -73,23 +72,22 @@ public class SecurityHandler {
 	 */
 	public static byte[] hashFunction(String input) {
 		
-		byte[] output = null;
+		InputStream is = null;
 		
-		MessageDigest cript;
 		try {
-			cript = MessageDigest.getInstance("SHA-1");
-			output = cript.digest(input.getBytes("utf-8"));
-			
-		} catch (NoSuchAlgorithmException e) {
-			// TODO Auto-generated catch block
+				is = new ObjectInputStream(is);
+				
+		} catch (FileNotFoundException e) {
 			e.printStackTrace();
-		} catch (UnsupportedEncodingException e) {
-			// TODO Auto-generated catch block
+		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		return output;
+
+		BufferedInputStream fileBuffer = new BufferedInputStream(is);
 		
+		return createHash(fileBuffer, 4096);
 	}
+	
 	/**
 	 *  dato un file f crea l'hast di 128 bit utilizzando SHA-1
 	 *  
@@ -150,4 +148,5 @@ public class SecurityHandler {
 
 		return hash;
 	}
+
 }

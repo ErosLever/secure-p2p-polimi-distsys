@@ -47,6 +47,7 @@ public abstract class Node {
 	}
 	
 	public Node(ServerSocket sock) throws IOException{
+		
 		this( sock, SecurityHandler.getKeypair() );
 	}
 
@@ -62,6 +63,17 @@ public abstract class Node {
 	}
 	
 	protected Node( final ServerSocket sock, PublicKey pubKey, PrivateKey privKey) throws IOException{
+		
+		if(sock == null) {
+			System.out.println("La porta selezionata non è disponibile");
+			System.out.println("Termino l'esecuzione");
+			//TODO codice richiesta nuova porta
+			// si potrebbe aggiungere codice per richiedere nuovamente la porta all'utente
+			// oppure controllare a monte che la porta inserita sia disponibile
+			
+		
+			System.exit(-1);
+		}
 		
 		privateKey = privKey;
 		publicKey = pubKey;

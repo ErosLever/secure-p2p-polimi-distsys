@@ -7,10 +7,7 @@ import java.io.ObjectOutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.security.GeneralSecurityException;
-import java.security.KeyPair;
 import java.security.NoSuchAlgorithmException;
-import java.security.PrivateKey;
-import java.security.PublicKey;
 import java.util.ArrayList;
 
 import polimi.distsys.sp2p.Message.Request;
@@ -20,38 +17,30 @@ import polimi.distsys.sp2p.Message.Response;
  * @author Ale
  * 
  * classe usata per gestire i nodi client del sistema p2p
+ * contiene le principali operazioni eseguibili da un nodo
+ * 
+ *  Join
+ *  Publish
+ *  Search
  *
  */
 public class SimpleNode extends Node {
 
 	private final String userID;
 	private final byte[] password;
-	
 	// lista dei file da condividere in locale
 	private ArrayList<SharedFile> fileList;
 	// directory locale dove prendere e salvare i file
 	private String downloadDirectory; // directory dove vengon considerati i file
-	
-	
-	//private final byte[] secretKey;
-
 	/** States whether the node is connected to a SuperNode */
 	private boolean connected;
-	
 
 
-	public SimpleNode(final String userID, final String password) throws IOException, NoSuchAlgorithmException {
-		this( getRandomPort(), userID, password, SecurityHandler.getKeypair() );
-	}
+	// COSTRUTTORI
+	public SimpleNode(final int port, final String userID, final String password, String directory) throws IOException, NoSuchAlgorithmException {
+		super(port);
 
-	public SimpleNode(final int port, final String userID, final String password, final KeyPair kp) throws IOException, NoSuchAlgorithmException {
-		this(port, userID, password, kp.getPublic(), kp.getPrivate());
-	}
-
-	public SimpleNode(final int port, final String userID, final String password, 
-			final PublicKey pub, final PrivateKey priv) throws IOException, NoSuchAlgorithmException {
-		super( port, pub, priv );
-
+		this.downloadDirectory = directory;
 		this.userID = userID;
 		this.password = SecurityHandler.hashFunction( password );
 
@@ -60,11 +49,19 @@ public class SimpleNode extends Node {
 
 	}
 
-	// abbozzo autenticazione, c e anche da gestire il multithreading
+	//JOIN
 	public void join() throws GeneralSecurityException, IOException, ClassNotFoundException {
 		join(true);
 	}
 
+	/**
+	 *  Il nodo instaura una connessione con uno dei supernodi attivi
+	 *  
+	 * @param checkAlreadyConnected
+	 * @throws GeneralSecurityException
+	 * @throws IOException
+	 * @throws ClassNotFoundException
+	 */
 	public void join(boolean checkAlreadyConnected) throws GeneralSecurityException, IOException, ClassNotFoundException {
 
 		if(!checkAlreadyConnected || !connected) {
@@ -107,90 +104,149 @@ public class SimpleNode extends Node {
 		}
 
 	}
-	
+
+
+	// PUBLISH 
+	/**
+	 * Metodo che viene chiamato a seguito di una join
+	 * scandisce la directory alla ricerca dei file da condividere completi
+	 * ed invia la lista al supernodo a cui si e collegati
+	 */
 	public void publish() {
-		
-		 
+
+
 		retrieveFileList(downloadDirectory);
-		// contatta il super nodo e invia la lista
+		//TODO CONTATTA IL SUPERNODO
 
 	}
 
+	/**
+	 * Questo metodo viene chiamato da un nodo connesso per aggiungere un file alla lista dei file disponibili
+	 * per la condivisione
+	 * 
+	 * @param filePath
+	 */
 	public void publish(String filePath) {
-		
-		File f = new File(filePath);
-		if(f.exists()) {
-			
-			addFileToList(f);
+
+		if(connected) {
+			// aggiunge il file alla lista locale
+			File f = new File(filePath);
+			if(f.exists()) {
+
+				addFileToList(f);
+
+				//TODO CONTATTA IL SUPERNODO
+
+				System.out.println("Ho aggiunto con successo il file" + 
+						f.getName() + 
+						"  alla lista dei file condivisi");
+			} else {
+
+				System.out.println("il file indicato non esiste!");
+
+			}
+
+
+		} else {
+			System.out.println("Non sei connesso alla rete!");
 		}
-		
-		//contatta il supernodo
+
 
 	}
 
+	/**
+	 * Metodo usato per rimuovere un file dalla lista di condivisione
+	 * 
+	 * @param sh
+	 */
 	public void unPublish(SharedFile sh) {
-		
+
+		if(connected) {
+
+			if(fileList.contains(sh)) {
+
+				fileList.remove(sh);
+
+				//TODO CONTATTA IL SUPERNODO
+
+				System.out.println("Ho rimosso il file" + 
+						sh.getName() + 
+						" dalla lista dei file condivisi");
+			} else {
+
+				System.out.println("il file indicato non esiste!");
+			}
+
+		} else {
+			System.out.println("Non sei connesso alla rete!");
+		}
+
 
 	}
-	
+
 	/**
 	 *  data una directory di partenza costruisce la lista dei file da condividere
-	 *  
 	 * @param directoryPath la directory dove vengon presi i file da condividere (non vengono considerate le sotto cartelle)
 	 */
 	private void retrieveFileList(String directoryPath) {
-		
+
 		// scandisce la directory ( non vengono effettuate ricerche nelle sottocartelle)
 		File directory = new File(directoryPath);
 		if (directory.exists() && directory.isDirectory()) {
-			
+
 			File[] files = directory.listFiles();
 			for ( File f: files) {
 				if (f.isFile() && f.canRead() && !f.isHidden()) {
-					
+
 					addFileToList(f);
-					
+
 				}
 			}
 		}
-		
-		
+
+
 	}
-	
+
+
 	/**
 	 * aggiunge un file alla lista dei file condivisi del nodo
 	 * @param f file da aggiungere
 	 */
 	private void addFileToList(File f) {
-		
+
 		if (f.isFile() && f.canRead() && !f.isHidden()) {
-			
+
 			SharedFile sharedFile = new SharedFile();
-			
+
 			sharedFile.setName(f.getName());
 			sharedFile.setPath(f.getAbsolutePath());
 			sharedFile.setHash(SecurityHandler.createHash(f));
-			
+
 			fileList.add(sharedFile);
-			
+
 		}
-		
-	}
-	
-	/**
-	 * visualizza la lista dei file condivisi legalmente
-	 * 
-	 */
-	public void visualizeSharedFile() {
-		
-		for( SharedFile sf: fileList) {
-			
-			System.out.println("Nome file: " + sf.getName() + ", path: " + sf.getPath());
-		}
+
 	}
 
+
+
+
+
+	public void search() {
+		
+	}
+	// GETTER & SETTER
 	public String getUserID() {
 		return userID;
+	}
+
+	public boolean isConnected() {
+		return connected;
+	}
+
+	
+	public ArrayList<SharedFile> getFileList() {
+		return fileList;
 	}
 
 }
