@@ -1,5 +1,6 @@
 package polimi.distsys.sp2p;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -10,6 +11,7 @@ import java.security.KeyPair;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.util.ArrayList;
 
 import polimi.distsys.sp2p.Message.Request;
 import polimi.distsys.sp2p.Message.Response;
@@ -21,20 +23,27 @@ import polimi.distsys.sp2p.Message.Response;
  *
  */
 public class SimpleNode extends Node {
-	
+
 	private final String userID;
 	private final byte[] password;
-	//private final byte[] secretKey;
 	
-	/** States whether the node is connected to a SuperNode */
-	private boolean connected;
+	// lista dei file da condividere in locale
+	private ArrayList<SharedFile> fileList;
+	// directory locale dove prendere e salvare i file
 	private String downloadDirectory; // directory dove vengon considerati i file
 	
+	
+	//private final byte[] secretKey;
+
+	/** States whether the node is connected to a SuperNode */
+	private boolean connected;
+	
+
 
 	public SimpleNode(final String userID, final String password) throws IOException, NoSuchAlgorithmException {
 		this( getRandomPort(), userID, password, SecurityHandler.getKeypair() );
 	}
-	
+
 	public SimpleNode(final int port, final String userID, final String password, final KeyPair kp) throws IOException, NoSuchAlgorithmException {
 		this(port, userID, password, kp.getPublic(), kp.getPrivate());
 	}
@@ -42,39 +51,40 @@ public class SimpleNode extends Node {
 	public SimpleNode(final int port, final String userID, final String password, 
 			final PublicKey pub, final PrivateKey priv) throws IOException, NoSuchAlgorithmException {
 		super( port, pub, priv );
-		
+
 		this.userID = userID;
 		this.password = SecurityHandler.hashFunction( password );
 
 		connected = false;
-		
+		fileList = new ArrayList<SharedFile>();
+
 	}
-	
+
 	// abbozzo autenticazione, c e anche da gestire il multithreading
 	public void join() throws GeneralSecurityException, IOException, ClassNotFoundException {
 		join(true);
 	}
-	
+
 	public void join(boolean checkAlreadyConnected) throws GeneralSecurityException, IOException, ClassNotFoundException {
-		
+
 		if(!checkAlreadyConnected || !connected) {
-			
+
 			Socket connection = null;
 			ObjectOutputStream oos = null;
 			ObjectInputStream ois = null;
-			
+
 			try{
 				NodeInfo dest = rh.getNodesList().iterator().next();
 				Message login = createMessage(Request.LOGIN, password, dest);
-	
+
 				InetSocketAddress sa = dest.getAddress();
 				connection = new Socket(sa.getHostName(), sa.getPort());
 				oos = new ObjectOutputStream(connection.getOutputStream());
 				ois = new ObjectInputStream(connection.getInputStream());
-	
+
 				oos.writeObject(login);
 				oos.flush();
-				
+
 				login = (Message) ois.readObject();
 				if(login.isResponse()){
 					Response response = (Response) login.getAction();
@@ -95,7 +105,92 @@ public class SimpleNode extends Node {
 						connection.close();
 			}
 		}
+
 	}
 	
+	public void publish() {
+		
+		 
+		retrieveFileList(downloadDirectory);
+		// contatta il super nodo e invia la lista
+
+	}
+
+	public void publish(String filePath) {
+		
+		File f = new File(filePath);
+		if(f.exists()) {
+			
+			addFileToList(f);
+		}
+		
+		//contatta il supernodo
+
+	}
+
+	public void unPublish(SharedFile sh) {
+		
+
+	}
+	
+	/**
+	 *  data una directory di partenza costruisce la lista dei file da condividere
+	 *  
+	 * @param directoryPath la directory dove vengon presi i file da condividere (non vengono considerate le sotto cartelle)
+	 */
+	private void retrieveFileList(String directoryPath) {
+		
+		// scandisce la directory ( non vengono effettuate ricerche nelle sottocartelle)
+		File directory = new File(directoryPath);
+		if (directory.exists() && directory.isDirectory()) {
+			
+			File[] files = directory.listFiles();
+			for ( File f: files) {
+				if (f.isFile() && f.canRead() && !f.isHidden()) {
+					
+					addFileToList(f);
+					
+				}
+			}
+		}
+		
+		
+	}
+	
+	/**
+	 * aggiunge un file alla lista dei file condivisi del nodo
+	 * @param f file da aggiungere
+	 */
+	private void addFileToList(File f) {
+		
+		if (f.isFile() && f.canRead() && !f.isHidden()) {
+			
+			SharedFile sharedFile = new SharedFile();
+			
+			sharedFile.setName(f.getName());
+			sharedFile.setPath(f.getAbsolutePath());
+			sharedFile.setHash(SecurityHandler.createHash(f));
+			
+			fileList.add(sharedFile);
+			
+		}
+		
+	}
+	
+	/**
+	 * visualizza la lista dei file condivisi legalmente
+	 * 
+	 */
+	public void visualizeSharedFile() {
+		
+		for( SharedFile sf: fileList) {
+			
+			System.out.println("Nome file: " + sf.getName() + ", path: " + sf.getPath());
+		}
+	}
+
+	public String getUserID() {
+		return userID;
+	}
 
 }
