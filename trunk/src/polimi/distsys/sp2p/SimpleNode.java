@@ -29,14 +29,20 @@ public class SimpleNode extends Node {
 	private final String userID;
 	private final byte[] password;
 	// lista dei file da condividere in locale
-	private ArrayList<SharedFile> fileList;
+	private ArrayList<LocalSharedFile> fileList;
 	// directory locale dove prendere e salvare i file
 	private String downloadDirectory; // directory dove vengon considerati i file
 	/** States whether the node is connected to a SuperNode */
 	private boolean connected;
+	
+	//lista utilizzata per memorizzare i risultati dell'ultima search
+	private ArrayList<RemoteSharedFile> searchResult;
+
 
 
 	// COSTRUTTORI
+	
+	//TODO ERRORE CAZZO: abbiamo cambiato il costruttore del nodo astratto ma ora e incosistente su come generiamo le chiavi e le scriviamo nel main
 	public SimpleNode(final int port, final String userID, final String password, String directory) throws IOException, NoSuchAlgorithmException {
 		super(port);
 
@@ -45,7 +51,7 @@ public class SimpleNode extends Node {
 		this.password = SecurityHandler.hashFunction( password );
 
 		connected = false;
-		fileList = new ArrayList<SharedFile>();
+		fileList = new ArrayList<LocalSharedFile>();
 
 	}
 
@@ -159,7 +165,7 @@ public class SimpleNode extends Node {
 	 * 
 	 * @param sh
 	 */
-	public void unPublish(SharedFile sh) {
+	public void unPublish(LocalSharedFile sh) {
 
 		if(connected) {
 
@@ -216,25 +222,27 @@ public class SimpleNode extends Node {
 
 		if (f.isFile() && f.canRead() && !f.isHidden()) {
 
-			SharedFile sharedFile = new SharedFile();
+			LocalSharedFile LocalSharedFile = new LocalSharedFile();
 
-			sharedFile.setName(f.getName());
-			sharedFile.setPath(f.getAbsolutePath());
-			sharedFile.setHash(SecurityHandler.createHash(f));
+			LocalSharedFile.setName(f.getName());
+			LocalSharedFile.setPath(f.getAbsolutePath());
+			LocalSharedFile.setHash(SecurityHandler.createHash(f));
 
-			fileList.add(sharedFile);
+			fileList.add(LocalSharedFile);
 
 		}
 
 	}
 
-
-
-
-
-	public void search() {
+	//SEARCH
+	
+	public void search(String query) {
 		
+		//COSTRUISCE IL MESSAGGIO PER IL SUPERNODO
+		//ATTENDE LA RISPOSTA
+		//RIEMPIE LA LISTA 
 	}
+	
 	// GETTER & SETTER
 	public String getUserID() {
 		return userID;
@@ -245,7 +253,7 @@ public class SimpleNode extends Node {
 	}
 
 	
-	public ArrayList<SharedFile> getFileList() {
+	public ArrayList<LocalSharedFile> getFileList() {
 		return fileList;
 	}
 

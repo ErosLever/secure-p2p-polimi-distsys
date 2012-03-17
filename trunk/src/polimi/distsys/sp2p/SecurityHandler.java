@@ -1,11 +1,11 @@
 package polimi.distsys.sp2p;
 
 import java.io.BufferedInputStream;
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.security.GeneralSecurityException;
 import java.security.KeyPair;
@@ -71,19 +71,17 @@ public class SecurityHandler {
 	 * @return
 	 */
 	public static byte[] hashFunction(String input) {
-		
-		InputStream is = null;
+		ByteArrayInputStream bais = null;
 		
 		try {
-				is = new ObjectInputStream(is);
-				
-		} catch (FileNotFoundException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
+		
+		bais = new ByteArrayInputStream(input.getBytes("utf-8"));
+		
+		}  catch (IOException e) {
 			e.printStackTrace();
 		}
 
-		BufferedInputStream fileBuffer = new BufferedInputStream(is);
+		BufferedInputStream fileBuffer = new BufferedInputStream(bais);
 		
 		return createHash(fileBuffer, 4096);
 	}

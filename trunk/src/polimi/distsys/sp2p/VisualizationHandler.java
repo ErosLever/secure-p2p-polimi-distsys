@@ -38,12 +38,12 @@ public class VisualizationHandler {
 	
 	private void run() {
 		
-		System.out.println("Benvenuto/a" + node.getUserID());
+		System.out.print("Benvenuto/a " + node.getUserID()+ "\n\n");
 		
 		while(true) {
 			
-			System.out.print( "-------------------\n" +
-					"Opzioni disponibili: \n");
+			System.out.print("Opzioni disponibili: \n" + 
+					"-------------------------------\n");
 			
 			if(node.isConnected()) {
 				
@@ -58,7 +58,7 @@ public class VisualizationHandler {
 				}
 			}
 			
-			System.out.println("-------------------");
+			System.out.print("-------------------------------\n\n");
 			command = scan.nextLine();
 			
 			try {
@@ -77,6 +77,7 @@ public class VisualizationHandler {
 		/**
 		 * visualizza la lista dei file condivisi
 		 */
+		@SuppressWarnings("unused")
 		private void visualizeSharedFile() {
 
 			for( SharedFile sf: node.getFileList()) {
@@ -91,6 +92,8 @@ public class VisualizationHandler {
 			switch(choice) {
 			case 0: {
 				System.out.println("Tento di fare la join");
+				//Chiamero il metodo per la join
+				break;
 			}
 			
 			default:

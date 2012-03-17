@@ -44,11 +44,11 @@ public class SuperNode extends Node implements ListenerCallback {
 	private Map<PublicKey,byte[]> credentials = new TreeMap<PublicKey, byte[]>();
 	
 	
-	public SuperNode() throws IOException {
-		
-		this( getRandomPort() );
-
-	}
+//	public SuperNode() throws IOException {
+//		
+//		this( getRandomPort() );
+//
+//	}
 	
 	public SuperNode(final int port) throws IOException {
 		this(port, SecurityHandler.getKeypair());
