@@ -38,11 +38,13 @@ public class Foo {
 		int port = 0;
 		String fileName = null;
 
-		if(Integer.valueOf(args[0]) == 1) 
+		if(Integer.valueOf(args[0]) == 1) {
 			fileName = "supernode.info"; 
+		}
 
-		if(Integer.valueOf(args[0]) == 2)
+		if(Integer.valueOf(args[0]) == 2) {
 			fileName = "simplenode.info"; 
+		}
 
 		// se il file non esiste o non puo essere letto viene restituito null
 		InputStream is = Foo.class.getResourceAsStream(fileName);
@@ -54,12 +56,12 @@ public class Foo {
 			do {
 
 				System.out.println("Inserisci il numero di porta da usare:");
-				String s = scanner.nextLine();
+				
 				try {
 
 					port = Integer.valueOf(scanner.nextLine());
 
-					if ( port > 1023 || port < 65535 ) 
+					if ( port > 1023 && port < 65535 ) 
 						goodValue = true; 
 					else 
 						System.out.print("Il valore inserito non  corretto\n" +
@@ -68,11 +70,11 @@ public class Foo {
 				} catch (NumberFormatException e) {
 
 					System.out.print("Il valore inserito non  corretto\n" +
-							"il numero di porta deve essere compreso tra 1024 e 65535\n\n");
+							"devi inserire un numero!\n\n");
 
 				}
 
-			}while(goodValue);
+			}while(!goodValue);
 
 			initializeNodeFile(fileName, port);
 
