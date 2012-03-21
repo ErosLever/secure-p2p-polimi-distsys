@@ -1,9 +1,6 @@
 package polimi.distsys.sp2p;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -15,18 +12,20 @@ import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.spec.X509EncodedKeySpec;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import javax.crypto.Cipher;
-import javax.crypto.CipherInputStream;
-import javax.crypto.CipherOutputStream;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
 import polimi.distsys.sp2p.util.PortChecker;
-import polimi.distsys.sp2p.util.Serializer;
+import polimi.distsys.sp2p.util.StreamCipherInputStream;
+import polimi.distsys.sp2p.util.StreamCipherOutputStream;
+import polimi.distsys.sp2p.util.StreamCipherOutputStream.ResettableCipher;
 
 /**
  * 
@@ -42,10 +41,10 @@ public class EncryptedSocketFactory {
 	/**
 	 * Ciphering configuration
 	 */
-	private static final int SYMM_KEY_SIZE = 128/8;
+	private static final int SYMM_KEY_SIZE = 128;
 	private static final String SYMM_ALGO = "AES";
 	
-	private static final int ASYMM_KEY_SIZE = 1024/8;
+	private static final int ASYMM_KEY_SIZE = 1024;
 	private static final String ASYMM_ALGO = "RSA";
 	
 	private final PrivateKey myPriv;
@@ -76,8 +75,8 @@ public class EncryptedSocketFactory {
 		
 		protected final Socket socket;
 		protected final SecretKey sessionKey;
-		protected final InputStream inputStream;
-		protected final OutputStream outputStream;
+		protected final StreamCipherInputStream inputStream;
+		protected final StreamCipherOutputStream outputStream;
 		
 		protected EncryptedSocket(Socket sock, E arg) throws GeneralSecurityException, IOException{
 			socket = sock;
@@ -97,23 +96,23 @@ public class EncryptedSocketFactory {
 		 */
 		protected abstract SecretKey handshake(E arg) throws GeneralSecurityException, IOException;
 		
-		protected InputStream initInputStream() throws GeneralSecurityException, IOException {
-			Cipher cipher = Cipher.getInstance(SYMM_ALGO);
-			cipher.init(Cipher.DECRYPT_MODE, sessionKey);
-			return new CipherInputStream(socket.getInputStream(), cipher);
+		protected StreamCipherInputStream initInputStream() throws GeneralSecurityException, IOException {
+			List<ResettableCipher> lrc = new ArrayList<ResettableCipher>();
+			lrc.add( new ResettableCipher( SYMM_ALGO, Cipher.DECRYPT_MODE, sessionKey ) );
+			return new StreamCipherInputStream( socket.getInputStream(), lrc );
 		}
 		
-		protected OutputStream initOutputStream() throws GeneralSecurityException, IOException {
-			Cipher cipher = Cipher.getInstance(SYMM_ALGO);
-			cipher.init(Cipher.ENCRYPT_MODE, sessionKey);
-			return new CipherOutputStream(socket.getOutputStream(), cipher);
+		protected StreamCipherOutputStream initOutputStream() throws GeneralSecurityException, IOException {
+			List<ResettableCipher> lrc = new ArrayList<ResettableCipher>();
+			lrc.add( new ResettableCipher( SYMM_ALGO, Cipher.ENCRYPT_MODE, sessionKey ) );
+			return new StreamCipherOutputStream( socket.getOutputStream(), lrc );
 		}
 		
-		public InputStream getInputStream(){
+		public StreamCipherInputStream getInputStream(){
 			return inputStream;
 		}
 		
-		public OutputStream getOutputStream(){
+		public StreamCipherOutputStream getOutputStream(){
 			return outputStream;
 		}
 		
@@ -136,7 +135,6 @@ public class EncryptedSocketFactory {
 			try {
 				socket.close();
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
@@ -169,66 +167,22 @@ public class EncryptedSocketFactory {
 		 */
 		protected SecretKey handshake(PublicKey hisPub) throws GeneralSecurityException, IOException {
 			
-			Cipher cipher = Cipher.getInstance(ASYMM_ALGO);
-			byte[] encodedKey = myPub.getEncoded();
+			List<ResettableCipher> lrc = new ArrayList<ResettableCipher>();
+			lrc.add( new ResettableCipher( ASYMM_ALGO, Cipher.ENCRYPT_MODE, hisPub ) );
+			StreamCipherOutputStream scos = new StreamCipherOutputStream( socket.getOutputStream(), lrc );
 			
-			/* encodedKey would normally be ASYMM_KEY_SIZE bytes
-			 * but asymmetric encryption supports at maximum
-			 * (ASYMM_KEY_SIZE - 11) so we have to split the encryption
-			 * in two phases. 
-			 */
-			int count = 0, blockSize = ASYMM_KEY_SIZE -11;
-			while(count + blockSize < encodedKey.length){
-				cipher.init(Cipher.ENCRYPT_MODE, hisPub);
-				socket.getOutputStream().write(
-					cipher.doFinal(encodedKey, count, blockSize)	
-				);
-				count+=blockSize;
-			}
-			cipher.init(Cipher.ENCRYPT_MODE, hisPub);
-			socket.getOutputStream().write(
-				cipher.doFinal(encodedKey, count, encodedKey.length - count)	
-			);
-			socket.getOutputStream().flush();
+			scos.write( myPub.getEncoded() );
+			scos.flush();
 			
-			/* local PublicKey sent encrypted with remote PublicKey
-			 * now let's prepare to receive the session key
-			 */
+			lrc = new ArrayList<ResettableCipher>();
+			// prima decifro con la mia privata
+			lrc.add( new ResettableCipher( ASYMM_ALGO, Cipher.DECRYPT_MODE, myPriv ) );
+			// poi con la sua pubblica
+			lrc.add( new ResettableCipher( ASYMM_ALGO, Cipher.DECRYPT_MODE, hisPub ) );
+			StreamCipherInputStream scis = new StreamCipherInputStream( socket.getInputStream(), lrc );
 			
-			/* Asymmetric encryption allow us to decrypt at most
-			 * ASYMM_KEY_SIZE bytes, but we will receive two blocks
-			 */
-			
-			/* ByteArrayOutputStream is needed because we can't know
-			 * in advance what will be the decrypted size
-			 */
-			
-			byte[] received = new byte[ASYMM_KEY_SIZE];
-			ByteArrayOutputStream baos = new ByteArrayOutputStream();
-			
-			Cipher cipher1 = Cipher.getInstance(ASYMM_ALGO);
-			cipher1.init(Cipher.DECRYPT_MODE, myPriv);
-			
-			for(int i=0;i<2;i++){
-				count = 0;
-				while(count < ASYMM_KEY_SIZE)
-					count += socket.getInputStream().read(received, count, ASYMM_KEY_SIZE - count);
-				cipher.init(Cipher.DECRYPT_MODE, myPriv);
-				baos.write( cipher.doFinal(received) );
-			}
-			
-			received = baos.toByteArray();
-			
-			// decrypted with the local PrivateKey
-			
-			Cipher cipher2 = Cipher.getInstance(ASYMM_ALGO);
-			cipher2.init(Cipher.DECRYPT_MODE, hisPub);
-			received = cipher2.doFinal(received);
-			
-			// decrypted with the remote PublicKey
-			
-			SecretKeySpec sessionKey = new SecretKeySpec(received, SYMM_ALGO);
-			// Parsed SecretKey from byte array
+			byte[] encoded = scis.readFixedSizeAsByteArray( SYMM_KEY_SIZE / 8 );
+			SecretKeySpec sessionKey = new SecretKeySpec( encoded, SYMM_ALGO );
 			
 			return sessionKey;
 		}
@@ -241,6 +195,8 @@ public class EncryptedSocketFactory {
 	
 	public class EncryptedServerSocket extends EncryptedSocket<Set<PublicKey>> {
 
+		private PublicKey clientKey;
+		
 		protected EncryptedServerSocket(Socket sock, Set<PublicKey> pubKeyList) throws IOException, GeneralSecurityException{
 			super( sock , pubKeyList);
 		}
@@ -254,63 +210,41 @@ public class EncryptedSocketFactory {
 		@Override
 		protected SecretKey handshake(Set<PublicKey> pubKeyList) throws GeneralSecurityException, IOException{
 			
-			/* Let's first decrypt the remote (client) PublicKey
-			 * which is encrypted with our PubliKey
-			 */
-			Cipher cipher = Cipher.getInstance(ASYMM_ALGO);
-			byte[] received = new byte[ASYMM_KEY_SIZE];
-			ByteArrayOutputStream baos = new ByteArrayOutputStream();
+			List<ResettableCipher> lrc = new ArrayList<ResettableCipher>();
+			lrc.add( new ResettableCipher( ASYMM_ALGO, Cipher.DECRYPT_MODE, myPriv ) );
+			StreamCipherInputStream scis = new StreamCipherInputStream( socket.getInputStream(), lrc );
 			
-			for(int i=0;i<2;i++){
-				int count = 0;
-				while(count < ASYMM_KEY_SIZE)
-					count += socket.getInputStream().read(received, count, ASYMM_KEY_SIZE - count);
-				cipher.init(Cipher.DECRYPT_MODE, myPriv);
-				baos.write( cipher.doFinal(received) );
-			}
-			
-			received = baos.toByteArray();
-			
-			// decryped the remote PublicKey
-			
-			X509EncodedKeySpec pubKeySpec = new X509EncodedKeySpec(received);
-			PublicKey hisPub = KeyFactory.getInstance(ASYMM_ALGO).generatePublic(pubKeySpec);
-			
-			// Parsed the remote PublicKey from the byte array
+			byte[] encoded = scis.readFixedSizeAsByteArray( ASYMM_KEY_SIZE / 8 , false);
+			X509EncodedKeySpec pubKeySpec = new X509EncodedKeySpec( encoded );
+			PublicKey hisPub = KeyFactory.getInstance( ASYMM_ALGO ).generatePublic( pubKeySpec );
 			
 			// check if it's a valid PublicKey (allowed to communicate with us)
 			if( ! pubKeyList.contains( hisPub )){
 				throw new GeneralSecurityException("Unknown PublicKey supplied by client");
 			}
 			
+			clientKey = hisPub;
+			
 			// generate a session key
 			KeyGenerator kgen = KeyGenerator.getInstance(SYMM_ALGO);
-			kgen.init( SYMM_KEY_SIZE * 8 );
+			kgen.init( SYMM_KEY_SIZE );
 			SecretKey sessionKey = kgen.generateKey();
 			
-			byte[] encodedKey = sessionKey.getEncoded();
+			lrc = new ArrayList<ResettableCipher>();
+			// prima cifro con la mia privata
+			lrc.add( new ResettableCipher( ASYMM_ALGO, Cipher.ENCRYPT_MODE, myPriv ) );
+			// poi con la sua pubblica
+			lrc.add( new ResettableCipher( ASYMM_ALGO, Cipher.ENCRYPT_MODE, hisPub ) );
+			StreamCipherOutputStream scos = new StreamCipherOutputStream( socket.getOutputStream(), lrc );
 			
-			// encrypt it with local PrivateKey
-			
-			Cipher cipher1 = Cipher.getInstance(ASYMM_ALGO);
-			cipher1.init(Cipher.ENCRYPT_MODE, myPriv);
-			encodedKey = cipher1.doFinal(encodedKey);
-			
-			// encrypt with remote PublicKey
-			
-			Cipher cipher2 = Cipher.getInstance(ASYMM_ALGO);
-			int blockSize = ASYMM_KEY_SIZE - 11;
-			for(int i=0;i<2;i++){
-				cipher2.init(Cipher.ENCRYPT_MODE, hisPub);
-				int bytes = Math.min(blockSize, encodedKey.length - blockSize*i);
-				byte[] toWrite = cipher2.doFinal(encodedKey, blockSize*i, bytes);
-				socket.getOutputStream().write(toWrite);
-			}
-			socket.getOutputStream().flush();
-			
-			// session key sent to the client
+			scos.write( sessionKey.getEncoded() );
+			scos.flush();
 			
 			return sessionKey;
+		}
+		
+		public PublicKey getClientPublicKey(){
+			return clientKey;
 		}
 		
 	}
@@ -339,21 +273,22 @@ public class EncryptedSocketFactory {
 			public void run(){
 				
 				try{
-					//while(true){
-						
-						Socket s = ss.accept();
-						
-						EncryptedServerSocket ess = esf.getEncryptedServerSocket(s, pklist);
-						
-						byte[] tmp = new byte[4];
-						int read = ess.getInputStream().read(tmp,0,4);
-						
-						System.out.println(read);
-						System.out.println(Serializer.byteArrayToHexString(tmp));
-						System.out.println(new String(tmp));
-						ess.close();
-						
-					//}
+					
+					Socket s = ss.accept();
+					
+					EncryptedServerSocket ess = esf.getEncryptedServerSocket(s, pklist);
+					System.out.println("Received connection from simple node");
+					System.out.println("     with PubKey "+ess.getClientPublicKey().getAlgorithm());
+					System.out.println("     communicating over "+ess.sessionKey.getAlgorithm());
+					
+					String str = new String( ess.getInputStream().readVariableSize(), "utf-8" );
+					System.out.println( str );
+					
+					ess.getOutputStream().write( str.length() );
+					ess.getOutputStream().flush();
+					
+					ess.close();
+					
 				}catch(Exception e){
 					e.printStackTrace();
 				}
@@ -380,8 +315,16 @@ public class EncryptedSocketFactory {
 				
 				try{
 						
+					System.out.println("Connecting to supernode");
 					EncryptedClientSocket ecs = esf.getEncryptedClientSocket(superAddr, superKey);
-					ecs.getOutputStream().write("ciao".getBytes(),0,4);
+					
+					System.out.println("Connected to supernode");
+					ecs.getOutputStream().writeVariableSize( "ciao".getBytes("utf-8") );
+					ecs.getOutputStream().flush();
+					
+					int len = ecs.getInputStream().readInt();
+					System.out.println( len );
+					
 					ecs.close();
 						
 				}catch(Exception e){
@@ -390,12 +333,12 @@ public class EncryptedSocketFactory {
 			}
 		}
 		
-		KeyPairGenerator kpg = KeyPairGenerator.getInstance(ASYMM_ALGO);
-		kpg.initialize(ASYMM_KEY_SIZE*8);
+		KeyPairGenerator kpg = KeyPairGenerator.getInstance( ASYMM_ALGO );
+		kpg.initialize( ASYMM_KEY_SIZE );
 		KeyPair simplekp = kpg.genKeyPair();
 		EncryptedSocketFactory simpleESF = new EncryptedSocketFactory(simplekp);
 
-		kpg.initialize(ASYMM_KEY_SIZE*8);
+		kpg.initialize( ASYMM_KEY_SIZE );
 		KeyPair superkp = kpg.genKeyPair();
 		EncryptedSocketFactory superESF = new EncryptedSocketFactory(superkp);
 
