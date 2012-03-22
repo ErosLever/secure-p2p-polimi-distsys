@@ -1,4 +1,4 @@
-package polimi.distsys.sp2p.containers;
+package polimi.distsys.sp2p.containers.messages;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -53,6 +53,9 @@ public class Message implements Serializable {
 		return hash;
 	}
 
+	public byte[] getPayload(){
+		return payload;
+	}
 
 
 
@@ -65,9 +68,5 @@ public class Message implements Serializable {
 
 	public enum Response implements Action {
 		OK, FAIL, NOSECRET
-	}
-
-	public byte[] getPayload() {
-		return payload;
 	}
 }

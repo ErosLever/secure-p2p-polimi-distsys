@@ -1,31 +1,16 @@
 package polimi.distsys.sp2p.containers;
-import java.net.InetAddress;
-
-
 
 public class RemoteSharedFile extends SharedFile {
 	
-	private InetAddress ip;
-	private int port;
+	private final NodeInfo owner;
 	
-	public RemoteSharedFile() {
-		super();
-		
-		port = 0;
-		ip = null;
-		
+	public RemoteSharedFile( String name, byte[] hash, NodeInfo owner ) {
+		super( name, hash );
+		this.owner = owner;
 	}
-	public InetAddress getIp() {
-		return ip;
-	}
-	public void setIp(InetAddress ip) {
-		this.ip = ip;
-	}
-	public int getPort() {
-		return port;
-	}
-	public void setPort(int port) {
-		this.port = port;
+	
+	public NodeInfo getOwner() {
+		return owner;
 	}
 
 }
