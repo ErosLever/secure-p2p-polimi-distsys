@@ -66,4 +66,8 @@ public class Message implements Serializable {
 	public enum Response implements Action {
 		OK, FAIL, NOSECRET
 	}
+
+	public byte[] getPayload() {
+		return payload;
+	}
 }
