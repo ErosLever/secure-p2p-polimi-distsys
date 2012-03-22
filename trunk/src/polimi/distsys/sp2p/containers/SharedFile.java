@@ -10,26 +10,20 @@ package polimi.distsys.sp2p.containers;
  */
 public abstract class SharedFile {
 	
-	protected String name;
-	protected byte[] hash;
+	protected final String name;
+	protected final byte[] hash;
 	
-	public SharedFile() {
-		name = null;
-		hash = null;
-		
+	public SharedFile( String name, byte[] hash) {
+		this.name = name;
+		this.hash = hash;
 	}
+	
 	public String getName() {
 		return name;
-	}
-	public void setName(String name) {
-		this.name = name;
 	}
 	
 	public byte[] getHash() {
 		return hash;
-	}
-	public void setHash(byte[] hash) {
-		this.hash = hash;
 	}
 	
 }

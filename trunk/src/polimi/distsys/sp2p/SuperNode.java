@@ -16,9 +16,9 @@ import java.util.HashSet;
 import java.util.Scanner;
 import java.util.Set;
 
-import polimi.distsys.sp2p.containers.Message;
-import polimi.distsys.sp2p.containers.Message.Request;
-import polimi.distsys.sp2p.containers.Message.Response;
+import polimi.distsys.sp2p.containers.messages.Message;
+import polimi.distsys.sp2p.containers.messages.Message.Request;
+import polimi.distsys.sp2p.containers.messages.Message.Response;
 import polimi.distsys.sp2p.handlers.EncryptedSocketFactory;
 import polimi.distsys.sp2p.handlers.EncryptedSocketFactory.EncryptedClientSocket;
 import polimi.distsys.sp2p.handlers.EncryptedSocketFactory.EncryptedServerSocket;
@@ -93,7 +93,7 @@ public class SuperNode extends Node implements ListenerCallback {
 		esf = new EncryptedSocketFactory(privateKey, publicKey);
 
 		//inizializza il listenere
-		listener = new Listener(socket.getLocalPort(), this);
+		listener = new Listener(socket.getChannel(), this);
 				
 	}	
 

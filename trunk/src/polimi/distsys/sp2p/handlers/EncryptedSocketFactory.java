@@ -22,6 +22,7 @@ import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
+import polimi.distsys.sp2p.containers.messages.Message;
 import polimi.distsys.sp2p.util.PortChecker;
 import polimi.distsys.sp2p.util.StreamCipherInputStream;
 import polimi.distsys.sp2p.util.StreamCipherOutputStream;
@@ -37,6 +38,8 @@ import polimi.distsys.sp2p.util.StreamCipherOutputStream.ResettableCipher;
  *
  */
 public class EncryptedSocketFactory {
+	
+	private static final int SOCKET_TIMEOUT = 3*1000; // 3 sec
 	
 	/**
 	 * Ciphering configuration
@@ -116,6 +119,15 @@ public class EncryptedSocketFactory {
 			return outputStream;
 		}
 		
+		public void writeMessage( Message msg ) throws IOException{
+			outputStream.writeVariableSize( msg );
+			outputStream.flush();
+		}
+		
+		public Message readMessage() throws IOException, GeneralSecurityException, ClassNotFoundException{
+			return inputStream.readObject( Message.class );
+		}
+		
 		public void close(){
 			// for some unknown reason we have to first close the output
 			if(!socket.isOutputShutdown())
@@ -141,6 +153,12 @@ public class EncryptedSocketFactory {
 		
 	}
 	
+	private static Socket createSocketWithTimeout( InetSocketAddress isa ) throws IOException{
+		Socket s = new Socket();
+		s.connect( isa, SOCKET_TIMEOUT);
+		return s;
+	}
+	
 	/**
 	 * Assuming we already know the PublicKey of the receiver,
 	 * we need only that info to communicate
@@ -153,7 +171,7 @@ public class EncryptedSocketFactory {
 		private final PublicKey hisPub;
 		
 		protected EncryptedClientSocket(InetSocketAddress isa, PublicKey hisPub) throws IOException, GeneralSecurityException{
-			super( new Socket(isa.getAddress(), isa.getPort()), hisPub);
+			super( createSocketWithTimeout( isa ), hisPub);
 			this.hisPub = hisPub;
 		}
 		

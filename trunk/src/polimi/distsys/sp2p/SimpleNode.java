@@ -10,13 +10,17 @@ import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Locale;
 import java.util.Scanner;
+import java.util.Set;
 
 import polimi.distsys.sp2p.containers.LocalSharedFile;
-import polimi.distsys.sp2p.containers.Message;
-import polimi.distsys.sp2p.containers.Message.Request;
-import polimi.distsys.sp2p.containers.Message.Response;
+import polimi.distsys.sp2p.containers.messages.LoginMessage;
+import polimi.distsys.sp2p.containers.messages.Message;
+import polimi.distsys.sp2p.containers.messages.Message.Request;
+import polimi.distsys.sp2p.containers.messages.Message.Response;
 import polimi.distsys.sp2p.containers.NodeInfo;
 import polimi.distsys.sp2p.containers.RemoteSharedFile;
 import polimi.distsys.sp2p.handlers.EncryptedSocketFactory;
@@ -120,15 +124,7 @@ public class SimpleNode extends Node {
 
 				NodeInfo dest = superNodeList.next();
 
-				// per salvare una porta ( max 65536 bastano 2 byte )
-				byte[] payload = new byte[2];
-
-				//prende gli 8 bit meno significativi
-				payload[0] = (byte) (socket.getLocalPort() & 0xff);
-				//leggo gli altri 8 bit ( piu a destra )
-				payload[1] = (byte) (socket.getLocalPort() >> 8);
-
-				Message login = new Message(Request.LOGIN, payload);
+				Message login = new LoginMessage( Request.LOGIN, socket.getLocalPort() );
 
 				try {
 
@@ -158,7 +154,7 @@ public class SimpleNode extends Node {
 
 			} 
 		} else {
-			throw new IllegalStateException("Connessione già effettuata"); }
+			throw new IllegalStateException("Connessione giÔøΩ effettuata"); }
 	}
 
 	// PUBLISH 
@@ -169,20 +165,17 @@ public class SimpleNode extends Node {
 	 * @throws IOException 
 	 * @throws GeneralSecurityException 
 	 */
-	public void publish() throws IOException, GeneralSecurityException {
+	public void publish( Set<File> fileList ) throws IOException, GeneralSecurityException {
 
 		if( superNode != null) {
 
-			// Popola la lista dei file condivisi
-			retrieveFileList(downloadDirectory);
-			// trasformo l'oggetto in array di bytes
 			byte[] payload = Serializer.serialize(fileList);	
 			Message publish = new Message(Request.PUBLISH, payload);
 
 			EncryptedClientSocket secureChannel = esf.getEncryptedClientSocket(superNode.getAddress(), superNode.getPublicKey());
 			secureChannel.writeMessage(publish);
 
-			// se ci son problemi questo metodo lancerà eccezione dunque non c'e motivo di controllare
+			// se ci son problemi questo metodo lancerÔøΩ eccezione dunque non c'e motivo di controllare
 			// la risposta
 			secureChannel.readMessage();
 
@@ -209,58 +202,12 @@ public class SimpleNode extends Node {
 	 * @throws IOException 
 	 * @throws GeneralSecurityException 
 	 */
-	public void publish(String filePath) throws IOException, GeneralSecurityException {
+	public void publish( String filePath ) throws IOException, GeneralSecurityException {
+		publish( retrieveFileList( filePath ) );
+	}
 
-		if(superNode != null) {
-
-			// aggiunge il file alla lista locale
-			File f = new File(filePath);
-			if(f.exists()) {
-
-				addFileToList(f);
-
-				RemoteSharedFile tmpFile = new RemoteSharedFile();
-
-				// vado a prendere il file dalla lista dei condivisi per creare il messaggio
-				// in questo modo evito di dover calcolare 2 volte l'hash del file
-				for(LocalSharedFile lsf: fileList) {
-					if(lsf.getPath().equals(f.getAbsolutePath())) {
-
-						tmpFile.setName(f.getName());
-						tmpFile.setHash(lsf.getHash());
-					}
-
-				}
-				// trasformo l'oggetto in array di bytes
-				byte[] payload = Serializer.serialize(tmpFile);	
-				Message publish = new Message(Request.PUBLISHU, payload);
-
-				EncryptedClientSocket secureChannel = esf.getEncryptedClientSocket(superNode.getAddress(), superNode.getPublicKey());
-				secureChannel.writeMessage(publish);
-
-				// se ci son problemi questo metodo lancerà eccezione dunque non c'e motivo di controllare
-				// la risposta
-				secureChannel.readMessage();
-
-				/* catch (TimeoutException e) {
-			//TODO deve essere throwata dal underlying layer
-				 * 
-				 * superNode = null;
-				 * Disconnetti il nodo e manda un messaggio di timeout
-
-				 */
-				secureChannel.close();
-				
-			} else {
-
-				throw new IOException("il file indicato non esiste!");
-			}
-
-		} else {
-			throw new IllegalStateException("Bisogna essere connessi alla rete");
-		}
-
-
+	public void publish( File filePath ) throws IOException, GeneralSecurityException {
+		publish( retrieveFileList( filePath ) );
 	}
 
 	/**
@@ -307,7 +254,7 @@ public class SimpleNode extends Node {
 				 */
 
 			} else { 
-				throw new IOException("Il file indicato non è condiviso");
+				throw new IOException("Il file indicato non ÔøΩ condiviso");
 			}
 
 
@@ -323,44 +270,27 @@ public class SimpleNode extends Node {
 	 * @throws IOException 
 	 * @throws NoSuchAlgorithmException 
 	 */
-	private void retrieveFileList(String directoryPath) throws NoSuchAlgorithmException, IOException {
+	private Set<LocalSharedFile> retrieveFileList(String directoryPath) throws NoSuchAlgorithmException, IOException {
+		return retrieveFileList( new File( directoryPath ) );
+	}
+	
+	private Set<LocalSharedFile> retrieveFileList(File file) throws NoSuchAlgorithmException, IOException {
 
 		// scandisce la directory ( non vengono effettuate ricerche nelle sottocartelle)
-		File directory = new File(directoryPath);
-		if (directory.exists() && directory.isDirectory()) {
+		Set<LocalSharedFile> fileList = new HashSet<LocalSharedFile>();
+		if( file.exists() && file.isDirectory() ){
 
-			File[] files = directory.listFiles();
-			for ( File f: files) {
-				if (f.isFile() && f.canRead() && !f.isHidden()) {
-
-					addFileToList(f);
-
-				}
+			File[] files = file.listFiles();
+			for( File f : files) {
+				if( f.isFile() && f.canRead() && ! f.isHidden() )
+					fileList.add( new LocalSharedFile( f ) );
+				else if( f.isDirectory() )
+					fileList.addAll( retrieveFileList( f ) );
 			}
+		} else {
+			fileList.add( new LocalSharedFile( file ) );
 		}
-
-
-	}
-
-	/**
-	 * aggiunge un file alla lista dei file condivisi del nodo
-	 * @param f file da aggiungere
-	 * @throws IOException 
-	 * @throws NoSuchAlgorithmException 
-	 */
-	private void addFileToList(File f) throws NoSuchAlgorithmException, IOException {
-
-		if (f.isFile() && f.canRead() && !f.isHidden()) {
-
-			LocalSharedFile LocalSharedFile = new LocalSharedFile();
-
-			LocalSharedFile.setName(f.getName());
-			LocalSharedFile.setPath(f.getAbsolutePath());
-			LocalSharedFile.setHash(SecurityHandler.createHash(f));
-
-			fileList.add(LocalSharedFile);
-
-		}
+		return fileList;
 
 	}
 
