@@ -12,7 +12,6 @@ import java.security.PublicKey;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Scanner;
-import java.util.concurrent.TimeoutException;
 
 import polimi.distsys.sp2p.containers.LocalSharedFile;
 import polimi.distsys.sp2p.containers.Message;
@@ -26,6 +25,7 @@ import polimi.distsys.sp2p.handlers.RoutingHandler;
 import polimi.distsys.sp2p.handlers.SecurityHandler;
 import polimi.distsys.sp2p.util.PortChecker;
 import polimi.distsys.sp2p.util.Serializer;
+
 
 /**
  * @author Ale
