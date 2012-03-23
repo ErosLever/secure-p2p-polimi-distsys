@@ -10,7 +10,6 @@ import java.security.GeneralSecurityException;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
-import java.security.spec.InvalidKeySpecException;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Scanner;
@@ -318,5 +317,10 @@ public class SimpleNode extends Node {
 	public InetSocketAddress getSocketAddress() {
 		return new InetSocketAddress( myAddress, socket.getLocalPort() );
 	}
+
+	public NodeInfo getNodeInfo(){
+		return new NodeInfo( this );
+	}
+
 
 }

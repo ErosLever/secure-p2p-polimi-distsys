@@ -40,6 +40,7 @@ public class Foo {
 		//}
 			
 		s.join();
+		System.out.println("Connesso :D");
 
 	}
 

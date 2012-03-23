@@ -11,7 +11,6 @@ import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 
-import polimi.distsys.sp2p.containers.NodeInfo;
 import polimi.distsys.sp2p.crypto.EncryptedSocketFactory;
 import polimi.distsys.sp2p.handlers.RoutingHandler;
 
@@ -52,10 +51,6 @@ public abstract class Node {
 		return privateKey;
 	}
 	
-	public NodeInfo getNodeInfo(){
-		return new NodeInfo( this );
-	}
-
 	public abstract InetSocketAddress getSocketAddress();
 	
 	public static PublicKey parsePublicKey( byte[] encoded ) throws InvalidKeySpecException, NoSuchAlgorithmException{
