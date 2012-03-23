@@ -8,7 +8,11 @@ public class RemoteSharedFile extends SharedFile {
 		super( name, hash );
 		this.owner = owner;
 	}
-	
+
+	public RemoteSharedFile( LocalSharedFile local, NodeInfo owner ) {
+		this( local.getName(), local.getHash(), owner );
+	}
+
 	public NodeInfo getOwner() {
 		return owner;
 	}

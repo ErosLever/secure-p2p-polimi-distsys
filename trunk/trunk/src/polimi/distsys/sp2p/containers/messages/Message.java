@@ -63,10 +63,10 @@ public class Message implements Serializable {
 	public interface Action {}
 
 	public enum Request implements Action {
-		LOGIN, PUBLISH, PUBLISHU, PUBLISHD, SEARCH, FETCH, LEAVE
+		LOGIN, PUBLISH, UNPUBLISH, SEARCH, FETCH, LEAVE, CLOSE_CONN
 	}
 
 	public enum Response implements Action {
-		OK, FAIL, NOSECRET
+		OK, FAIL, NOSECRET, ALREADY_CONNECTED
 	}
 }
