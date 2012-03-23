@@ -41,7 +41,7 @@ public class Foo {
 			
 		s.join();
 		System.out.println("Connesso :D");
-
+		s.publish( s.getDownloadDirectory() );
 	}
 
 

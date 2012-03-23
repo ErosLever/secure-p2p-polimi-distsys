@@ -1,7 +1,13 @@
 package polimi.distsys.sp2p.containers;
 
-public class RemoteSharedFile extends SharedFile {
+import java.io.Serializable;
+
+public class RemoteSharedFile extends SharedFile implements Serializable {
 	
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1422515634395952696L;
 	private final NodeInfo owner;
 	
 	public RemoteSharedFile( String name, byte[] hash, NodeInfo owner ) {

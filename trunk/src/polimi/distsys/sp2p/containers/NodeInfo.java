@@ -1,13 +1,18 @@
 package polimi.distsys.sp2p.containers;
 
+import java.io.Serializable;
 import java.net.InetSocketAddress;
 import java.security.PublicKey;
 
 import polimi.distsys.sp2p.Node;
 import polimi.distsys.sp2p.SuperNode;
 
-public class NodeInfo implements Comparable<NodeInfo> {
+public class NodeInfo implements Comparable<NodeInfo>, Serializable {
 
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -2169907759845274030L;
 	private final PublicKey publicKey;
 	private final InetSocketAddress address;
 	private final boolean isSuper;

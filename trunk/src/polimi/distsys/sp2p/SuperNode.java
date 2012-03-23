@@ -9,11 +9,15 @@ import java.nio.channels.SocketChannel;
 import java.security.GeneralSecurityException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Scanner;
 import java.util.Set;
 
 import polimi.distsys.sp2p.containers.NodeInfo;
+import polimi.distsys.sp2p.containers.RemoteSharedFile;
+import polimi.distsys.sp2p.containers.SharedFile;
 import polimi.distsys.sp2p.containers.messages.Message.Request;
 import polimi.distsys.sp2p.containers.messages.Message.Response;
 import polimi.distsys.sp2p.crypto.EncryptedSocketFactory.EncryptedServerSocket;
@@ -43,6 +47,8 @@ public class SuperNode extends Node implements ListenerCallback {
 	
 	private final Set<NodeInfo> connectedClients;
 	
+	private final Map<String, Set<RemoteSharedFile>> files; 
+	
 	private final Listener listener;
 
 	public static SuperNode fromFile() throws IOException, ClassNotFoundException, GeneralSecurityException{
@@ -71,6 +77,7 @@ public class SuperNode extends Node implements ListenerCallback {
 
 		this.credentials = new HashSet<PublicKey>();
 		this.connectedClients = new HashSet<NodeInfo>();
+		this.files = new HashMap<String, Set<RemoteSharedFile>>();
 
 		//legge le credenziali
 		Scanner sc = new Scanner( new FileInputStream( credentials ) );
@@ -115,12 +122,36 @@ public class SuperNode extends Node implements ListenerCallback {
 						enSocket.getOutputStream().write( Response.OK );
 						enSocket.getOutputStream().write( enSocket.getRemoteAddress().getAddress() );
 						enSocket.getOutputStream().sendDigest();
-						enSocket.getOutputStream().flush();
 					}
 					enSocket.getOutputStream().flush();
+					enSocket.close();
 	
 					break;
 	
+				case PUBLISH:
+					
+					try {
+						Set<RemoteSharedFile> list = enSocket.getInputStream()
+								.readObject( Set.class );
+						enSocket.getInputStream().checkDigest();
+						
+						for( RemoteSharedFile rsf : list ){
+							String id = Serializer.byteArrayToHexString( rsf.getHash() );
+							if( ! files.containsKey( id ) ){
+								files.put( id, new HashSet<RemoteSharedFile>() );
+							}
+							if( ! files.get( id ).contains( rsf ) ){
+								files.get( id ).add( rsf );
+							}
+						}
+						
+						enSocket.getOutputStream().write( Response.OK );
+						enSocket.getOutputStream().flush();
+						enSocket.close();
+					} catch (ClassNotFoundException e) {
+						e.printStackTrace();
+					}
+					
 				default:
 					enSocket.getOutputStream().write( Response.FAIL );
 			}

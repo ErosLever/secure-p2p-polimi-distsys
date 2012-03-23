@@ -164,7 +164,7 @@ public class SimpleNode extends Node {
 			Set<RemoteSharedFile> toSend = new HashSet<RemoteSharedFile>();
 			for( LocalSharedFile lsf : fileList )
 				toSend.add( new RemoteSharedFile( lsf, getNodeInfo() ) );
-			secureChannel.getOutputStream().write( toSend );
+			secureChannel.getOutputStream().writeVariableSize( toSend );
 			secureChannel.getOutputStream().sendDigest();
 			secureChannel.getOutputStream().flush();
 
