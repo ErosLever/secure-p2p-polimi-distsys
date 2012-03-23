@@ -1,5 +1,6 @@
 package polimi.distsys.sp2p.crypto;
 
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -26,6 +27,7 @@ import javax.crypto.spec.SecretKeySpec;
 import polimi.distsys.sp2p.containers.messages.Message;
 import polimi.distsys.sp2p.crypto.StreamCipherOutputStream.ResettableCipher;
 import polimi.distsys.sp2p.util.PortChecker;
+import polimi.distsys.sp2p.util.Serializer;
 
 /**
  * 
@@ -44,10 +46,10 @@ public class EncryptedSocketFactory {
 	 * Ciphering configuration
 	 */
 	private static final int SYMM_KEY_SIZE = 128;
-	private static final String SYMM_ALGO = "AES";
+	public static final String SYMM_ALGO = "AES";
 	
 	private static final int ASYMM_KEY_SIZE = 1024;
-	private static final String ASYMM_ALGO = "RSA";
+	public static final String ASYMM_ALGO = "RSA";
 	
 	private final PrivateKey myPriv;
 	private final PublicKey myPub;
@@ -369,10 +371,20 @@ public class EncryptedSocketFactory {
 		KeyPairGenerator kpg = KeyPairGenerator.getInstance( ASYMM_ALGO );
 		kpg.initialize( ASYMM_KEY_SIZE );
 		KeyPair simplekp = kpg.genKeyPair();
+		FileOutputStream fos = new FileOutputStream("test-simple");
+		fos.write( Serializer.base64Encode( simplekp.getPublic().getEncoded() ).getBytes() );
+		fos.write(":".getBytes());
+		fos.write( Serializer.base64Encode( simplekp.getPrivate().getEncoded() ).getBytes() );
+		fos.close();
 		EncryptedSocketFactory simpleESF = new EncryptedSocketFactory(simplekp);
 
 		kpg.initialize( ASYMM_KEY_SIZE );
 		KeyPair superkp = kpg.genKeyPair();
+		fos = new FileOutputStream("test-super");
+		fos.write( Serializer.base64Encode( superkp.getPublic().getEncoded() ).getBytes() );
+		fos.write(":".getBytes());
+		fos.write( Serializer.base64Encode( superkp.getPrivate().getEncoded() ).getBytes() );
+		fos.close();
 		EncryptedSocketFactory superESF = new EncryptedSocketFactory(superkp);
 
 		Set<PublicKey> pklist = new HashSet<PublicKey>();

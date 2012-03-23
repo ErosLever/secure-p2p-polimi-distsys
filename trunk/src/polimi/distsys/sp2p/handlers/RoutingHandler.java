@@ -1,9 +1,12 @@
 package polimi.distsys.sp2p.handlers;
 
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
+import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
+import java.security.spec.InvalidKeySpecException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -11,6 +14,7 @@ import java.util.Scanner;
 import java.util.Set;
 import java.util.TreeSet;
 
+import polimi.distsys.sp2p.Node;
 import polimi.distsys.sp2p.containers.NodeInfo;
 import polimi.distsys.sp2p.util.Serializer;
 
@@ -44,13 +48,15 @@ public class RoutingHandler {
 	 *  --> partenza "cold start"
 	 * @throws ClassNotFoundException 
 	 * @throws IOException 
+	 * @throws NoSuchAlgorithmException 
+	 * @throws InvalidKeySpecException 
 	 */
-	public RoutingHandler() throws IOException, ClassNotFoundException {
+	public RoutingHandler() throws IOException, ClassNotFoundException, InvalidKeySpecException, NoSuchAlgorithmException {
 		
 		listOfSuperNodes = new TreeSet<NodeInfo>();
 		connectedNodes = new TreeSet<NodeInfo>();
 		
-		InputStream is = RoutingHandler.class.getResourceAsStream(info);
+		InputStream is = new FileInputStream(info);
 		
 		if(is != null) {
 			
@@ -64,9 +70,7 @@ public class RoutingHandler {
 					String[] tmp = sc.nextLine().split(":");
 					String host = tmp[0];
 					int port = Integer.parseInt(tmp[1]);
-					PublicKey pubKey = Serializer.deserialize(
-							Serializer.base64Decode(tmp[2]), 
-							PublicKey.class);
+					PublicKey pubKey = Node.parsePublicKey( Serializer.base64Decode(tmp[2]) ); 
 							
 					listOfSuperNodes.add(new NodeInfo(pubKey, new InetSocketAddress(host, port), true));
 				

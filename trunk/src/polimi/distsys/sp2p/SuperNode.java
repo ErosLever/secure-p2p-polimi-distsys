@@ -3,13 +3,18 @@ package polimi.distsys.sp2p;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.net.Inet4Address;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.nio.channels.SocketChannel;
 import java.security.GeneralSecurityException;
+import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.X509EncodedKeySpec;
 import java.util.HashSet;
 import java.util.Scanner;
 import java.util.Set;
@@ -17,6 +22,7 @@ import java.util.Set;
 import polimi.distsys.sp2p.containers.NodeInfo;
 import polimi.distsys.sp2p.containers.messages.Message.Request;
 import polimi.distsys.sp2p.containers.messages.Message.Response;
+import polimi.distsys.sp2p.crypto.EncryptedSocketFactory;
 import polimi.distsys.sp2p.crypto.EncryptedSocketFactory.EncryptedServerSocket;
 import polimi.distsys.sp2p.util.Listener;
 import polimi.distsys.sp2p.util.PortChecker;
@@ -44,36 +50,37 @@ public class SuperNode extends Node implements ListenerCallback {
 	
 	private final Set<NodeInfo> connectedClients;
 	
+	private final InetAddress myAddress;
+	
 	private final Listener listener;
 
-	public static SuperNode fromFile() throws IOException, ClassNotFoundException, NoSuchAlgorithmException{
+	public static SuperNode fromFile() throws IOException, ClassNotFoundException, GeneralSecurityException{
 		return fromFile( new File( infoFile ) );
 	}
 
-	public static SuperNode fromFile( File file ) throws IOException, ClassNotFoundException, NoSuchAlgorithmException{
+	public static SuperNode fromFile( File file ) throws IOException, ClassNotFoundException, GeneralSecurityException{
 		return fromFile( file, new File( CREDENTIALS_FILE ) );
 	}
 	
-	public static SuperNode fromFile( File file, File credentials) throws IOException, ClassNotFoundException, NoSuchAlgorithmException{
-		//legge il file per recuperare chiave pubblica, privata e porta del nodo
+	public static SuperNode fromFile( File file, File credentials) throws IOException, ClassNotFoundException, GeneralSecurityException{
+		//legge il file per recuperare chiave pubblica, privata, indirizzo e porta del nodo
 		Scanner sc = new Scanner( new FileInputStream( file ) );
 		String[] tmp = sc.nextLine().split(":");
-		PublicKey pub = Serializer.deserialize(
-				Serializer.base64Decode(tmp[0]), 
-				PublicKey.class);
-		PrivateKey priv = Serializer.deserialize(
-				Serializer.base64Decode(tmp[1]), 
-				PrivateKey.class);
+		PublicKey pub = parsePublicKey( Serializer.base64Decode( tmp[0] ) );
+		PrivateKey priv = parsePrivateKey( Serializer.base64Decode( tmp[1] ) ); 
+		InetAddress address = Inet4Address.getByName( tmp[2] );
 		ServerSocket socket = PortChecker.getBoundedServerSocketChannelOrNull(
-				Integer.parseInt(tmp[2])).socket();
+				Integer.parseInt(tmp[3])).socket();
 		sc.close();
-		return new SuperNode(pub, priv, socket,  credentials );
+		return new SuperNode(pub, priv, address, socket,  credentials );
 	}
 
-	private SuperNode(PublicKey pub, PrivateKey priv, ServerSocket sock, File credentials ) throws IOException, ClassNotFoundException, NoSuchAlgorithmException {
+	private SuperNode(PublicKey pub, PrivateKey priv, InetAddress addr, ServerSocket sock, File credentials ) throws IOException, ClassNotFoundException, GeneralSecurityException {
 		//inizializza il routerHandler
 		super( pub, priv, sock );
 
+		myAddress = addr;
+		
 		this.credentials = new HashSet<PublicKey>();
 		this.connectedClients = new HashSet<NodeInfo>();
 
@@ -81,9 +88,7 @@ public class SuperNode extends Node implements ListenerCallback {
 		Scanner sc = new Scanner( new FileInputStream( credentials ) );
 		while(sc.hasNext()) {
 
-			PublicKey tmpKey = Serializer.deserialize(
-					Serializer.base64Decode(sc.nextLine()), 
-					PublicKey.class);
+			PublicKey tmpKey = parsePublicKey(Serializer.base64Decode(sc.nextLine())); 
 			this.credentials.add( tmpKey );
 		}
 		sc.close();
@@ -120,6 +125,9 @@ public class SuperNode extends Node implements ListenerCallback {
 					}else{
 						connectedClients.add( clientNode );
 						enSocket.getOutputStream().write( Response.OK );
+						enSocket.getOutputStream().write( enSocket.getRemoteAddress().getAddress() );
+						enSocket.getOutputStream().sendDigest();
+						enSocket.getOutputStream().flush();
 					}
 					enSocket.getOutputStream().flush();
 	
@@ -133,6 +141,11 @@ public class SuperNode extends Node implements ListenerCallback {
 		}catch(GeneralSecurityException e){
 			e.printStackTrace();
 		}
+	}
+
+	@Override
+	public InetSocketAddress getSocketAddress() {
+		return new InetSocketAddress( myAddress, socket.getLocalPort() );
 	}
 
 }

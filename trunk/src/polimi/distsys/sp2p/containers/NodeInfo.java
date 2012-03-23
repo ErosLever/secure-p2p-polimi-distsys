@@ -16,7 +16,7 @@ public class NodeInfo implements Comparable<NodeInfo> {
 	public NodeInfo(Node sn){
 		
 		publicKey = sn.getPublicKey();
-		address = (new 	InetSocketAddress(sn.getSocketAddress().getAddress(), sn.getSocketAddress().getPort()));
+		address = sn.getSocketAddress();
 		isSuper = sn instanceof SuperNode;
 	}
 
