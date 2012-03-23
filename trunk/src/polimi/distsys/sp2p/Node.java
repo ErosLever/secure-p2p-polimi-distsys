@@ -1,6 +1,7 @@
 package polimi.distsys.sp2p;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
@@ -39,7 +40,7 @@ public abstract class Node {
 		
 	}
 	
-	protected PublicKey getPublicKey(){
+	public PublicKey getPublicKey(){
 		return publicKey;
 	}
 	
@@ -49,6 +50,10 @@ public abstract class Node {
 	
 	public NodeInfo getNodeInfo(){
 		return new NodeInfo( this );
+	}
+
+	public InetSocketAddress getSocketAddress() {	
+		return (new InetSocketAddress(socket.getInetAddress(), socket.getLocalPort()));
 	}
 	
 
