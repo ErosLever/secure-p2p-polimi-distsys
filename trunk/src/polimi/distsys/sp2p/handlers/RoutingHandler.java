@@ -35,7 +35,7 @@ import polimi.distsys.sp2p.util.Serializer;
 public class RoutingHandler {
 	
 	//File contenente gli indirizzi dei supernodi
-	private final String info = "superNodes.list";
+	private final String info = "supernodes.list";
 	//Lista usata per tener traccia dei supernodi ( noti )
 	private final Set<NodeInfo> listOfSuperNodes;
 	//Lista usata per memorizzare i nodi attualmente connessi al nodo di riferimento
