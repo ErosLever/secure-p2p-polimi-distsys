@@ -3,9 +3,13 @@ package polimi.distsys.sp2p;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
+import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.security.spec.X509EncodedKeySpec;
 
 import polimi.distsys.sp2p.containers.NodeInfo;
 import polimi.distsys.sp2p.crypto.EncryptedSocketFactory;
@@ -30,7 +34,7 @@ public abstract class Node {
 
 
 	protected Node( PublicKey pub, PrivateKey priv, ServerSocket sock ) 
-			throws IOException, NoSuchAlgorithmException, ClassNotFoundException {
+			throws IOException, NoSuchAlgorithmException, ClassNotFoundException, InvalidKeySpecException {
 		this.privateKey = priv;
 		this.publicKey = pub;
 		this.socket = sock;
@@ -52,10 +56,16 @@ public abstract class Node {
 		return new NodeInfo( this );
 	}
 
-	public InetSocketAddress getSocketAddress() {	
-		return (new InetSocketAddress(socket.getInetAddress(), socket.getLocalPort()));
+	public abstract InetSocketAddress getSocketAddress();
+	
+	public static PublicKey parsePublicKey( byte[] encoded ) throws InvalidKeySpecException, NoSuchAlgorithmException{
+		return KeyFactory.getInstance( EncryptedSocketFactory.ASYMM_ALGO )
+			.generatePublic( new X509EncodedKeySpec( encoded ) );
 	}
 	
-
+	public static PrivateKey parsePrivateKey( byte[] encoded ) throws InvalidKeySpecException, NoSuchAlgorithmException{
+		return KeyFactory.getInstance( EncryptedSocketFactory.ASYMM_ALGO )
+			.generatePrivate( new PKCS8EncodedKeySpec( encoded ) );
+	}
 
 }

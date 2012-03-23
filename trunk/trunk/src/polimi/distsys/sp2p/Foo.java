@@ -25,20 +25,21 @@ public class Foo {
 		}
 
 		// INIT SUPERNODE
-		if(Integer.valueOf(args[0]) == 1) {
+		//if(Integer.valueOf(args[0]) == 1) {
 
-			new SuperNode(); 
-		}
+			SuperNode.fromFile();
+		//}
 
 		//INIT SIMPLENODE
-		if(Integer.valueOf(args[0]) == 2) {
+		//if(Integer.valueOf(args[0]) == 2) {
 
 			SimpleNode s = SimpleNode.fromFile();
 
 			//start textual gui
-			new VisualizationHandler(s);
-		}
-
+			//new VisualizationHandler(s);
+		//}
+			
+		s.join();
 
 	}
 

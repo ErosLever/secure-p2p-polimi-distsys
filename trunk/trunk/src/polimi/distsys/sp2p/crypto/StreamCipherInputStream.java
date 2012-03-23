@@ -13,7 +13,6 @@ import java.util.Collections;
 import java.util.List;
 
 import javax.crypto.CipherInputStream;
-import javax.swing.event.RowSorterEvent.Type;
 
 import polimi.distsys.sp2p.crypto.StreamCipherOutputStream.ResettableCipher;
 

@@ -3,10 +3,14 @@ package polimi.distsys.sp2p;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.net.Inet4Address;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.security.spec.InvalidKeySpecException;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Scanner;
@@ -45,30 +49,31 @@ public class SimpleNode extends Node {
 	private File downloadDirectory; 
 	/** States whether the node is connected to a SuperNode */
 	private NodeInfo superNode;
+	// 
+	private InetAddress myAddress;
 	
 	// COSTRUTTORI
-	public static SimpleNode fromFile() throws IOException, ClassNotFoundException, NoSuchAlgorithmException{
+	public static SimpleNode fromFile() 
+			throws IOException, ClassNotFoundException, GeneralSecurityException {
 		return fromFile( new File( infoFile ) );
 	}
 
-	public static SimpleNode fromFile( File file ) throws IOException, ClassNotFoundException, NoSuchAlgorithmException{
+	public static SimpleNode fromFile( File file ) 
+			throws IOException, ClassNotFoundException, GeneralSecurityException {
 		return fromFile( file, new File( System.getProperty("user.dir") ) );
 	}
 	
-	public static SimpleNode fromFile( File file, File workingDir) throws IOException, ClassNotFoundException, NoSuchAlgorithmException{
+	public static SimpleNode fromFile( File file, File workingDir) 
+			throws IOException, ClassNotFoundException, GeneralSecurityException {
 		Scanner sc = new Scanner( new FileInputStream( file ) );
 		String[] tmp = sc.nextLine().split(":");
 		sc.close();
-		PublicKey pub = Serializer.deserialize(
-				Serializer.base64Decode(tmp[0]), 
-				PublicKey.class);
-		PrivateKey priv = Serializer.deserialize(
-				Serializer.base64Decode(tmp[1]), 
-				PrivateKey.class);
+		PublicKey pub = parsePublicKey( Serializer.base64Decode( tmp[0] ) );
+		PrivateKey priv = parsePrivateKey( Serializer.base64Decode( tmp[1] ) ); 
 		return new SimpleNode(pub, priv, workingDir );
 	}
 	
-	private SimpleNode(PublicKey pub, PrivateKey priv, File workingDir) throws IOException, NoSuchAlgorithmException, ClassNotFoundException {
+	private SimpleNode(PublicKey pub, PrivateKey priv, File workingDir) throws IOException, GeneralSecurityException, ClassNotFoundException {
 		//inizializza il socket sulla prima porta disponibile partendo dalla 8000
 		super( pub, priv, PortChecker.getBoundedServerSocketChannel().socket() );
 
@@ -119,6 +124,9 @@ public class SimpleNode extends Node {
 
 					if( reply == Response.OK ){
 						superNode = dest;
+						byte[] ip = secureChannel.getInputStream().readFixedSizeAsByteArray(4);
+						secureChannel.getInputStream().checkDigest();
+						this.myAddress = Inet4Address.getByAddress( ip );
 						break;
 					}
 
@@ -304,6 +312,11 @@ public class SimpleNode extends Node {
 	
 	public File getDownloadDirectory(){
 		return downloadDirectory;
+	}
+
+	@Override
+	public InetSocketAddress getSocketAddress() {
+		return new InetSocketAddress( myAddress, socket.getLocalPort() );
 	}
 
 }
