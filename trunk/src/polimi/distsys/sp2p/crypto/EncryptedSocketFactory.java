@@ -1,6 +1,7 @@
-package polimi.distsys.sp2p.handlers;
+package polimi.distsys.sp2p.crypto;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -23,10 +24,8 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
 import polimi.distsys.sp2p.containers.messages.Message;
+import polimi.distsys.sp2p.crypto.StreamCipherOutputStream.ResettableCipher;
 import polimi.distsys.sp2p.util.PortChecker;
-import polimi.distsys.sp2p.util.StreamCipherInputStream;
-import polimi.distsys.sp2p.util.StreamCipherOutputStream;
-import polimi.distsys.sp2p.util.StreamCipherOutputStream.ResettableCipher;
 
 /**
  * 
@@ -121,11 +120,18 @@ public class EncryptedSocketFactory {
 		
 		public void writeMessage( Message msg ) throws IOException{
 			outputStream.writeVariableSize( msg );
+			outputStream.sendDigest();
 			outputStream.flush();
 		}
 		
 		public Message readMessage() throws IOException, GeneralSecurityException, ClassNotFoundException{
-			return inputStream.readObject( Message.class );
+			Message msg = inputStream.readObject( Message.class );
+			inputStream.checkDigest();
+			return msg;
+		}
+		
+		public InetAddress getRemoteAddress(){
+			return socket.getInetAddress();
 		}
 		
 		public void close(){
@@ -295,12 +301,17 @@ public class EncryptedSocketFactory {
 					Socket s = ss.accept();
 					
 					EncryptedServerSocket ess = esf.getEncryptedServerSocket(s, pklist);
+					
+					ess.getInputStream().checkDigest();
+					
 					System.out.println("Received connection from simple node");
 					System.out.println("     with PubKey "+ess.getClientPublicKey().getAlgorithm());
 					System.out.println("     communicating over "+ess.sessionKey.getAlgorithm());
 					
 					String str = new String( ess.getInputStream().readVariableSize(), "utf-8" );
 					System.out.println( str );
+					
+					ess.getInputStream().checkDigest();
 					
 					ess.getOutputStream().write( str.length() );
 					ess.getOutputStream().flush();
@@ -336,8 +347,12 @@ public class EncryptedSocketFactory {
 					System.out.println("Connecting to supernode");
 					EncryptedClientSocket ecs = esf.getEncryptedClientSocket(superAddr, superKey);
 					
+					ecs.getOutputStream().sendDigest();
+					ecs.getOutputStream().flush();
+					
 					System.out.println("Connected to supernode");
 					ecs.getOutputStream().writeVariableSize( "ciao".getBytes("utf-8") );
+					ecs.getOutputStream().sendDigest();
 					ecs.getOutputStream().flush();
 					
 					int len = ecs.getInputStream().readInt();
