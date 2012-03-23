@@ -3,30 +3,22 @@ package polimi.distsys.sp2p;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.net.ServerSocket;
 import java.security.GeneralSecurityException;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.Locale;
 import java.util.Scanner;
 import java.util.Set;
 
 import polimi.distsys.sp2p.containers.LocalSharedFile;
-import polimi.distsys.sp2p.containers.messages.LoginMessage;
-import polimi.distsys.sp2p.containers.messages.Message;
-import polimi.distsys.sp2p.containers.messages.Message.Request;
-import polimi.distsys.sp2p.containers.messages.Message.Response;
 import polimi.distsys.sp2p.containers.NodeInfo;
 import polimi.distsys.sp2p.containers.RemoteSharedFile;
-import polimi.distsys.sp2p.handlers.EncryptedSocketFactory;
-import polimi.distsys.sp2p.handlers.EncryptedSocketFactory.EncryptedClientSocket;
+import polimi.distsys.sp2p.containers.messages.Message.Request;
+import polimi.distsys.sp2p.containers.messages.Message.Response;
+import polimi.distsys.sp2p.crypto.EncryptedSocketFactory.EncryptedClientSocket;
 import polimi.distsys.sp2p.handlers.RoutingHandler;
-import polimi.distsys.sp2p.handlers.SecurityHandler;
 import polimi.distsys.sp2p.util.PortChecker;
 import polimi.distsys.sp2p.util.Serializer;
 
@@ -45,62 +37,49 @@ import polimi.distsys.sp2p.util.Serializer;
 public class SimpleNode extends Node {
 
 	//file da cui recuperare le informazioni
-	private final String infoFile = "simplenode.info";
-
-	private final PrivateKey privateKey;
-	private final PublicKey publicKey;	
-	//il socket usato sia dal nodo che dal supernodo per ricevere le connessioni
-	private final ServerSocket socket;
-
+	private static final String infoFile = "simplenode.info";
 
 	// lista dei file da condividere in locale
-	private ArrayList<LocalSharedFile> fileList;
+	private Set<LocalSharedFile> fileList;
 	// directory locale dove prendere e salvare i file
-	private String downloadDirectory; 
-
+	private File downloadDirectory; 
 	/** States whether the node is connected to a SuperNode */
 	private NodeInfo superNode;
-
-	//lista utilizzata per memorizzare i risultati dell'ultima search
-	private ArrayList<RemoteSharedFile> searchResult;
-
-	private EncryptedSocketFactory esf;
-
-
+	
 	// COSTRUTTORI
+	public static SimpleNode fromFile() throws IOException, ClassNotFoundException, NoSuchAlgorithmException{
+		return fromFile( new File( infoFile ) );
+	}
 
-	public SimpleNode(String directory) throws IOException, NoSuchAlgorithmException, ClassNotFoundException {
-		super();
-
-		//inizializza il socket sulla prima porta disponibile partendo dalla 8000
-		socket = PortChecker.getBoundedServerSocketChannel().socket();
-
-		//legge il file per recuperare chiave pubblica e privata del nodo
-		InputStream is = new FileInputStream(infoFile);
-
-		Scanner sc = new Scanner(is);
+	public static SimpleNode fromFile( File file ) throws IOException, ClassNotFoundException, NoSuchAlgorithmException{
+		return fromFile( file, new File( System.getProperty("user.dir") ) );
+	}
+	
+	public static SimpleNode fromFile( File file, File workingDir) throws IOException, ClassNotFoundException, NoSuchAlgorithmException{
+		Scanner sc = new Scanner( new FileInputStream( file ) );
 		String[] tmp = sc.nextLine().split(":");
-		publicKey = Serializer.deserialize(
+		sc.close();
+		PublicKey pub = Serializer.deserialize(
 				Serializer.base64Decode(tmp[0]), 
 				PublicKey.class);
-		privateKey = Serializer.deserialize(
+		PrivateKey priv = Serializer.deserialize(
 				Serializer.base64Decode(tmp[1]), 
 				PrivateKey.class);
+		return new SimpleNode(pub, priv, workingDir );
+	}
+	
+	private SimpleNode(PublicKey pub, PrivateKey priv, File workingDir) throws IOException, NoSuchAlgorithmException, ClassNotFoundException {
+		//inizializza il socket sulla prima porta disponibile partendo dalla 8000
+		super( pub, priv, PortChecker.getBoundedServerSocketChannel().socket() );
 
-		this.downloadDirectory = directory;
+		this.downloadDirectory = workingDir;
 
 		//la lista dei file e inizialmente vuota
-		fileList = new ArrayList<LocalSharedFile>();
+		fileList = new HashSet<LocalSharedFile>();
 
 		//il nodo non e connesso al network quando viene creato
 		superNode = null;
 
-		esf = new EncryptedSocketFactory(privateKey, publicKey);
-
-	}
-
-	public SimpleNode() throws NoSuchAlgorithmException, IOException, ClassNotFoundException {
-		this("."+File.separator);
 	}
 
 	//JOIN
@@ -117,44 +96,46 @@ public class SimpleNode extends Node {
 
 		if(superNode == null) {
 
-			Iterator<NodeInfo> superNodeList = RoutingHandler.getRandomOrderedList(rh.getSupernodeList()).iterator();
+			Iterator<NodeInfo> superNodeList = RoutingHandler.getRandomOrderedList(
+					rh.getSupernodeList() ).iterator();
 
 			// tenta la connessione su uno dei supernodi disponibili nella lista
 			while(superNodeList.hasNext()) {
 
 				NodeInfo dest = superNodeList.next();
-
-				Message login = new LoginMessage( Request.LOGIN, socket.getLocalPort() );
+				EncryptedClientSocket secureChannel = null;
 
 				try {
 
-					EncryptedClientSocket secureChannel = esf.getEncryptedClientSocket(dest.getAddress(), dest.getPublicKey());
-					secureChannel.writeMessage(login);
-					Message reply = secureChannel.readMessage();
+					secureChannel = enSockFact.getEncryptedClientSocket(
+							dest.getAddress(), dest.getPublicKey());
+					
+					secureChannel.getOutputStream().write( Request.LOGIN );
+					secureChannel.getOutputStream().write( socket.getLocalPort() );
+					secureChannel.getOutputStream().sendDigest();
+					secureChannel.getOutputStream().flush();
+					
+					Response reply = secureChannel.getInputStream().readEnum( Response.class );
 
-					if( reply.getAction() == Response.OK ){
+					if( reply == Response.OK ){
 						superNode = dest;
 						break;
 					}
 
-					//TODO DEVO CHIUDERE IL SOCKET
+					secureChannel.getOutputStream().write( Request.CLOSE_CONN );
+					secureChannel.close();
 
 				} catch(IOException e) {
 					continue;
-
+				} finally {
+					if( secureChannel != null ){
+						secureChannel.close();
+					}
 				}
-
-				/* catch (TimeoutException e) {
-					//TODO deve essere throwata dal underlying layer
-					continue;
-
-				} 
-
-				 */
 
 			} 
 		} else {
-			throw new IllegalStateException("Connessione gi� effettuata"); }
+			throw new IllegalStateException("Connessione già effettuata"); }
 	}
 
 	// PUBLISH 
@@ -165,33 +146,40 @@ public class SimpleNode extends Node {
 	 * @throws IOException 
 	 * @throws GeneralSecurityException 
 	 */
-	public void publish( Set<File> fileList ) throws IOException, GeneralSecurityException {
+	public void publish( Set<LocalSharedFile> fileList ) throws IOException, GeneralSecurityException {
 
 		if( superNode != null) {
 
-			byte[] payload = Serializer.serialize(fileList);	
-			Message publish = new Message(Request.PUBLISH, payload);
+			EncryptedClientSocket secureChannel = enSockFact.getEncryptedClientSocket(
+					superNode.getAddress(), superNode.getPublicKey());
+			secureChannel.getOutputStream().write( Request.PUBLISH );
+			
+			Set<RemoteSharedFile> toSend = new HashSet<RemoteSharedFile>();
+			for( LocalSharedFile lsf : fileList )
+				toSend.add( new RemoteSharedFile( lsf, getNodeInfo() ) );
+			secureChannel.getOutputStream().write( toSend );
+			secureChannel.getOutputStream().sendDigest();
+			secureChannel.getOutputStream().flush();
 
-			EncryptedClientSocket secureChannel = esf.getEncryptedClientSocket(superNode.getAddress(), superNode.getPublicKey());
-			secureChannel.writeMessage(publish);
-
-			// se ci son problemi questo metodo lancer� eccezione dunque non c'e motivo di controllare
+			// se ci son problemi questo metodo lancerà eccezione dunque non c'e motivo di controllare
 			// la risposta
-			secureChannel.readMessage();
-
+			Response reply = secureChannel.getInputStream().readEnum( Response.class );
+			if( reply == Response.OK ){
+				this.fileList.addAll( fileList );
+			}else{
+				throw new IOException( "Something went wrong while publishin'" );
+			}
 			/* catch (TimeoutException e) {
-		//TODO deve essere throwata dal underlying layer
+			 * TODO deve essere throwata dal underlying layer
 			 * 
 			 * superNode = null;
 			 * Disconnetti il nodo e manda un messaggio di timeout
 
 			 */
-			
 			secureChannel.close();
-		}
-		else 
+		} else { 
 			throw new IllegalStateException("Bisogna essere connessi alla rete");
-
+		}
 	}
 
 	/**
@@ -217,33 +205,36 @@ public class SimpleNode extends Node {
 	 * @throws IOException 
 	 * @throws GeneralSecurityException 
 	 */
-	public void unPublish(LocalSharedFile sh) throws IOException, GeneralSecurityException {
+	public void unpublish( Set<LocalSharedFile> list ) 
+			throws IOException, GeneralSecurityException {
 
-		if(superNode != null) {
+		if( superNode != null ){
 
-			if (fileList.contains(sh)){
+			Set<RemoteSharedFile> toSend = new HashSet<RemoteSharedFile>();
+			
+			for( LocalSharedFile lsf : list )
+				if( fileList.contains( lsf ) )
+					toSend.add( new RemoteSharedFile( lsf, this.getNodeInfo() ) );
+					
+			EncryptedClientSocket secureChannel = enSockFact.getEncryptedClientSocket(
+					superNode.getAddress(), superNode.getPublicKey());
+			
+			secureChannel.getOutputStream().write( Request.UNPUBLISH );
+			secureChannel.getOutputStream().write( toSend );
+			secureChannel.getOutputStream().sendDigest();
+			secureChannel.getOutputStream().flush();
 
-				RemoteSharedFile tmpFile = new RemoteSharedFile();
+			Response reply = secureChannel.getInputStream().readEnum( Response.class );
+			
+			if( reply == Response.OK ) {
 
-				tmpFile.setName(sh.getName());
-				tmpFile.setHash(sh.getHash());
+				fileList.removeAll( list );
 
-				// trasformo l'oggetto in array di bytes
-				byte[] payload = Serializer.serialize(tmpFile);	
-				Message publish = new Message(Request.PUBLISHD, payload);
+			} else {
+				throw new IOException( "Something went wrong while un-publishin'" );
+			}
 
-				EncryptedClientSocket secureChannel = esf.getEncryptedClientSocket(superNode.getAddress(), superNode.getPublicKey());
-				secureChannel.writeMessage(publish);
-
-				Message reply = secureChannel.readMessage();
-
-				if(reply.getAction() == Response.OK ) {
-
-					fileList.remove(sh);
-
-				}
-
-				secureChannel.close();
+			secureChannel.close();
 
 				/* catch (TimeoutException e) {
 			//TODO deve essere throwata dal underlying layer
@@ -252,11 +243,6 @@ public class SimpleNode extends Node {
 				 * Disconnetti il nodo e manda un messaggio di timeout
 
 				 */
-
-			} else { 
-				throw new IOException("Il file indicato non � condiviso");
-			}
-
 
 		} else {
 			throw new IllegalStateException("Bisogna essere connessi alla rete");
@@ -304,25 +290,20 @@ public class SimpleNode extends Node {
 
 	// GETTER & SETTER
 	public boolean isConnected() {
-
 		return superNode != null;
 	}
 
 
-	public ArrayList<LocalSharedFile> getFileList() {
+	public Set<LocalSharedFile> getFileList() {
 		return fileList;
 	}
-
-
-	public PublicKey getPublicKey() {
-		return publicKey;
+	
+	public void setDownloadDirectory( File file ){
+		downloadDirectory = file;
 	}
-
-	@Override
-	public ServerSocket getSocketAddress() {
-		return socket;
+	
+	public File getDownloadDirectory(){
+		return downloadDirectory;
 	}
-
-
 
 }

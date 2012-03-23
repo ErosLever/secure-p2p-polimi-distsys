@@ -1,31 +1,27 @@
 package polimi.distsys.sp2p;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.nio.channels.SocketChannel;
 import java.security.GeneralSecurityException;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Scanner;
 import java.util.Set;
 
-import polimi.distsys.sp2p.containers.messages.Message;
+import polimi.distsys.sp2p.containers.NodeInfo;
 import polimi.distsys.sp2p.containers.messages.Message.Request;
 import polimi.distsys.sp2p.containers.messages.Message.Response;
-import polimi.distsys.sp2p.handlers.EncryptedSocketFactory;
-import polimi.distsys.sp2p.handlers.EncryptedSocketFactory.EncryptedClientSocket;
-import polimi.distsys.sp2p.handlers.EncryptedSocketFactory.EncryptedServerSocket;
+import polimi.distsys.sp2p.crypto.EncryptedSocketFactory.EncryptedServerSocket;
 import polimi.distsys.sp2p.util.Listener;
-import polimi.distsys.sp2p.util.Listener.ListenerCallback;
 import polimi.distsys.sp2p.util.PortChecker;
 import polimi.distsys.sp2p.util.Serializer;
+import polimi.distsys.sp2p.util.Listener.ListenerCallback;
 
 
 /**
@@ -39,62 +35,62 @@ import polimi.distsys.sp2p.util.Serializer;
 public class SuperNode extends Node implements ListenerCallback {
 
 	//file dove vengono memorizzate le public key dei simple node
-	private final String CREDENTIALS_FILE = "credentials.list";
+	private static final String CREDENTIALS_FILE = "credentials.list";
+	//file da cui recuperare le informazioni del nodo
+	private static final String infoFile = "supernode.info";
+
 	// struttura dati in cui vengono salvate le credenziali dei nodi ( public keys )
 	private final Set<PublicKey> credentials;
-
-	//file da cui recuperare le informazioni del nodo
-	private final String infoFile = "supernode.info";
-
-	private final PrivateKey privateKey;
-	private final PublicKey publicKey;	
-	//il socket usato sia dal nodo che dal supernodo per ricevere le connessioni
-	private final ServerSocket socket;
 	
-	private final EncryptedSocketFactory esf;
+	private final Set<NodeInfo> connectedClients;
+	
 	private final Listener listener;
 
+	public static SuperNode fromFile() throws IOException, ClassNotFoundException, NoSuchAlgorithmException{
+		return fromFile( new File( infoFile ) );
+	}
 
-
-	public SuperNode() throws IOException, ClassNotFoundException, NoSuchAlgorithmException {
-		//inizializza il routerHandler
-		super();
-
+	public static SuperNode fromFile( File file ) throws IOException, ClassNotFoundException, NoSuchAlgorithmException{
+		return fromFile( file, new File( CREDENTIALS_FILE ) );
+	}
+	
+	public static SuperNode fromFile( File file, File credentials) throws IOException, ClassNotFoundException, NoSuchAlgorithmException{
 		//legge il file per recuperare chiave pubblica, privata e porta del nodo
-		InputStream is = new FileInputStream(infoFile);
-
-		Scanner sc = new Scanner(is);
+		Scanner sc = new Scanner( new FileInputStream( file ) );
 		String[] tmp = sc.nextLine().split(":");
-		publicKey = Serializer.deserialize(
+		PublicKey pub = Serializer.deserialize(
 				Serializer.base64Decode(tmp[0]), 
 				PublicKey.class);
-		privateKey = Serializer.deserialize(
+		PrivateKey priv = Serializer.deserialize(
 				Serializer.base64Decode(tmp[1]), 
 				PrivateKey.class);
-		socket = PortChecker.getBoundedServerSocketChannelOrNull(Integer.parseInt(tmp[2])).socket();
-
+		ServerSocket socket = PortChecker.getBoundedServerSocketChannelOrNull(
+				Integer.parseInt(tmp[2])).socket();
 		sc.close();
-		is.close();
+		return new SuperNode(pub, priv, socket,  credentials );
+	}
 
-		credentials = new HashSet<PublicKey>();
+	private SuperNode(PublicKey pub, PrivateKey priv, ServerSocket sock, File credentials ) throws IOException, ClassNotFoundException, NoSuchAlgorithmException {
+		//inizializza il routerHandler
+		super( pub, priv, sock );
+
+		this.credentials = new HashSet<PublicKey>();
+		this.connectedClients = new HashSet<NodeInfo>();
 
 		//legge le credenziali
-		is = new FileInputStream(CREDENTIALS_FILE);
-		sc = new Scanner(is);
+		Scanner sc = new Scanner( new FileInputStream( credentials ) );
 		while(sc.hasNext()) {
 
 			PublicKey tmpKey = Serializer.deserialize(
 					Serializer.base64Decode(sc.nextLine()), 
 					PublicKey.class);
-			credentials.add(tmpKey);
+			this.credentials.add( tmpKey );
 		}
-		
-		//inizializza la socket factory
-		esf = new EncryptedSocketFactory(privateKey, publicKey);
+		sc.close();
 
-		//inizializza il listenere
+		//inizializza il listener
 		listener = new Listener(socket.getChannel(), this);
-				
+
 	}	
 
 
@@ -103,100 +99,40 @@ public class SuperNode extends Node implements ListenerCallback {
 	@Override
 	public void handleRequest(SocketChannel client) {
 
-
 		try {
-			
-			EncryptedServerSocket enSocket = esf.getEncryptedServerSocket(client.socket(), credentials);
-			
-			Message message = enSocket.readMessage();
-			
-			Request req = (Request) message.getAction();
-			
 
-					switch(req) {
-					case LOGIN:
-						
-						//
-						byte[] bytePort = message.getPayload();
-						
+			EncryptedServerSocket enSocket = enSockFact.getEncryptedServerSocket(client.socket(), credentials);
 
-						// save the public key in the shared keys
+			Request req = enSocket.getInputStream().readEnum( Request.class );
 
-
-						/*if( !credentials.containsKey(remote.getPublicKey()) ){
-								msg = SuperNode.this.createMessage(
-										Response.FAIL, 
-										"Remote client is not one of my clients".getBytes(), 
-										remote
-								);
-								break;
-							}*/
-
-						byte[] hashedPassword = msg.decryptPayload(sharedKey);
-						if( ! Arrays.equals( credentials.get(remote.getPublicKey()), hashedPassword) ){
-							msg = SuperNode.this.createMessage(
-									Response.FAIL, 
-									"Wrong password".getBytes(), 
-									remote
-									);
-							break;
-						}
-
-						msg = SuperNode.this.createMessage(Response.OK, "OK".getBytes(), remote);
-						break;
-
-					default:
-
-						msg = SuperNode.this.createMessage(Response.FAIL, "Bad Request".getBytes(), remote);
+			switch(req) {
+				case LOGIN:
+					int port = enSocket.getInputStream().readInt();
+					enSocket.getInputStream().checkDigest();
+					
+					InetSocketAddress isa = new InetSocketAddress( 
+							enSocket.getRemoteAddress(), port);
+					
+					NodeInfo clientNode = new NodeInfo( 
+							enSocket.getClientPublicKey(), isa, false );
+					if( connectedClients.contains( clientNode ) ){
+						enSocket.getOutputStream().write( Response.ALREADY_CONNECTED );
+					}else{
+						connectedClients.add( clientNode );
+						enSocket.getOutputStream().write( Response.OK );
 					}
-
-					oos.writeObject(msg);
-					oos.flush();
-
-
-
-
-
-				} catch (GeneralSecurityException e) {
-					e.printStackTrace();
-				}
-				finally{
-					if(oos != null)
-						if(!socket.isOutputShutdown())
-							try {
-								oos.close();
-							} catch (IOException e) {
-							}
-					if(ois != null)
-						if(!socket.isInputShutdown())
-							try {
-								ois.close();
-							} catch (IOException e) {
-							}
-					if(!socket.isClosed())
-						try {
-							socket.close();
-						} catch (IOException e) {
-						}
-
-				}
-
-
-				public PrivateKey getPrivateKey() {
-					return privateKey;
-				}
-
-
-				public PublicKey getPublicKey() {
-					return publicKey;
-				}
-
-
-				@Override
-				public ServerSocket getSocketAddress() {
-					// TODO Auto-generated method stub
-					return null;
-				}
-
-
+					enSocket.getOutputStream().flush();
+	
+					break;
+	
+				default:
+					enSocket.getOutputStream().write( Response.FAIL );
 			}
+		}catch(IOException e){
+			e.printStackTrace();
+		}catch(GeneralSecurityException e){
+			e.printStackTrace();
+		}
+	}
+
+}

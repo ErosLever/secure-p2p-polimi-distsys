@@ -33,7 +33,7 @@ public class Foo {
 		//INIT SIMPLENODE
 		if(Integer.valueOf(args[0]) == 2) {
 
-			SimpleNode s = new SimpleNode();
+			SimpleNode s = SimpleNode.fromFile();
 
 			//start textual gui
 			new VisualizationHandler(s);
