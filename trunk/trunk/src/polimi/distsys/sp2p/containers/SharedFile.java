@@ -3,13 +3,19 @@
  */
 package polimi.distsys.sp2p.containers;
 
+import java.io.Serializable;
+
 
 /**
  * @author Ale
  *
  */
-public abstract class SharedFile {
+public abstract class SharedFile implements Serializable {
 	
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 8321633873353650401L;
 	protected final String name;
 	protected final byte[] hash;
 	
