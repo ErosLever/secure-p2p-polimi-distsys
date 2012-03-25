@@ -48,7 +48,7 @@ public class SimpleNode extends Node {
 	private File downloadDirectory; 
 	/** States whether the node is connected to a SuperNode */
 	private NodeInfo superNode;
-	// 
+	
 	private InetAddress myAddress;
 	
 	// COSTRUTTORI
@@ -96,10 +96,11 @@ public class SimpleNode extends Node {
 	 * @throws IOException
 	 * @throws ClassNotFoundException
 	 */
-	public void join() throws GeneralSecurityException, IOException, ClassNotFoundException {
+	public void join() throws GeneralSecurityException,IllegalStateException, IOException, ClassNotFoundException {
 
 		if(superNode == null) {
-
+			
+			//fa partire la lista dei supernodi da un punto casuale
 			Iterator<NodeInfo> superNodeList = RoutingHandler.getRandomOrderedList(
 					rh.getSupernodeList() ).iterator();
 
@@ -142,7 +143,45 @@ public class SimpleNode extends Node {
 
 			} 
 		} else {
-			throw new IllegalStateException("Connessione già effettuata"); }
+			throw new IllegalStateException(); }
+	}
+	
+	//LEAVE
+	
+	/**
+	 * disconnette il nodo dalla rete
+	 * 
+	 * @throws GeneralSecurityException 
+	 * @throws IOException 
+	 */
+	public void leave() throws IOException, GeneralSecurityException {
+		if(superNode != null ) {
+
+			EncryptedClientSocket secureChannel = null;
+
+			try {
+
+				secureChannel = enSockFact.getEncryptedClientSocket(
+						superNode.getAddress(), superNode.getPublicKey());
+
+				secureChannel.getOutputStream().write( Request.CLOSE_CONN );
+
+				Response reply = secureChannel.getInputStream().readEnum( Response.class );
+
+				if( reply == Response.OK ){
+					superNode = null;
+
+				}		
+			} 
+			finally {
+				if( secureChannel != null ){
+					secureChannel.close();
+				}
+			}
+
+		} else {
+			throw new IllegalStateException(); 
+		}
 	}
 
 	// PUBLISH 
@@ -168,21 +207,20 @@ public class SimpleNode extends Node {
 			secureChannel.getOutputStream().sendDigest();
 			secureChannel.getOutputStream().flush();
 
-			// se ci son problemi questo metodo lancerà eccezione dunque non c'e motivo di controllare
-			// la risposta
+			
 			Response reply = secureChannel.getInputStream().readEnum( Response.class );
 			if( reply == Response.OK ){
 				this.fileList.addAll( fileList );
 			}else{
+				
+				//TODO NON DOVREMMO DISCONNETTERE IL NODO IN QUESTO CASO
+				
+				/* ci sarebbe da fare una catch della io exception e disconnettere nel caso il nodo dalla rete
+				 * 
+				 */
 				throw new IOException( "Something went wrong while publishin'" );
 			}
-			/* catch (TimeoutException e) {
-			 * TODO deve essere throwata dal underlying layer
-			 * 
-			 * superNode = null;
-			 * Disconnetti il nodo e manda un messaggio di timeout
-
-			 */
+			
 			secureChannel.close();
 		} else { 
 			throw new IllegalStateException("Bisogna essere connessi alla rete");
@@ -242,14 +280,7 @@ public class SimpleNode extends Node {
 			}
 
 			secureChannel.close();
-
-				/* catch (TimeoutException e) {
-			//TODO deve essere throwata dal underlying layer
-				 * 
-				 * superNode = null;
-				 * Disconnetti il nodo e manda un messaggio di timeout
-
-				 */
+		
 
 		} else {
 			throw new IllegalStateException("Bisogna essere connessi alla rete");
@@ -263,11 +294,11 @@ public class SimpleNode extends Node {
 	 * @throws IOException 
 	 * @throws NoSuchAlgorithmException 
 	 */
-	private Set<LocalSharedFile> retrieveFileList(String directoryPath) throws NoSuchAlgorithmException, IOException {
+	public Set<LocalSharedFile> retrieveFileList(String directoryPath) throws NoSuchAlgorithmException, IOException {
 		return retrieveFileList( new File( directoryPath ) );
 	}
 	
-	private Set<LocalSharedFile> retrieveFileList(File file) throws NoSuchAlgorithmException, IOException {
+	public Set<LocalSharedFile> retrieveFileList(File file) throws NoSuchAlgorithmException, IOException {
 
 		// scandisce la directory ( non vengono effettuate ricerche nelle sottocartelle)
 		Set<LocalSharedFile> fileList = new HashSet<LocalSharedFile>();
@@ -320,6 +351,10 @@ public class SimpleNode extends Node {
 
 	public NodeInfo getNodeInfo(){
 		return new NodeInfo( this );
+	}
+
+	public NodeInfo getSuperNode() {
+		return superNode;
 	}
 
 
