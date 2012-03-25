@@ -23,7 +23,6 @@ public class Message implements Serializable {
 	 */
 	private static final long serialVersionUID = 3955511950935291985L;
 	private final Action action;
-	//private final NodeInfo nodeInfo;
 	private final byte[] payload;
 	private final byte[] hash;
 
