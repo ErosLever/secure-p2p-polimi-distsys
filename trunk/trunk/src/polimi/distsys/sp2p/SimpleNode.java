@@ -294,11 +294,11 @@ public class SimpleNode extends Node {
 	 * @throws IOException 
 	 * @throws NoSuchAlgorithmException 
 	 */
-	public Set<LocalSharedFile> retrieveFileList(String directoryPath) throws NoSuchAlgorithmException, IOException {
+	private Set<LocalSharedFile> retrieveFileList(String directoryPath) throws NoSuchAlgorithmException, IOException {
 		return retrieveFileList( new File( directoryPath ) );
 	}
 	
-	public Set<LocalSharedFile> retrieveFileList(File file) throws NoSuchAlgorithmException, IOException {
+	private Set<LocalSharedFile> retrieveFileList(File file) throws NoSuchAlgorithmException, IOException {
 
 		// scandisce la directory ( non vengono effettuate ricerche nelle sottocartelle)
 		Set<LocalSharedFile> fileList = new HashSet<LocalSharedFile>();
