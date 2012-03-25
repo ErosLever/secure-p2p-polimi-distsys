@@ -2,13 +2,21 @@ package polimi.distsys.sp2p.gui;
 
 import java.awt.BorderLayout;
 import java.awt.Font;
+import java.awt.SystemColor;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.io.File;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 
+import javax.swing.DefaultListModel;
+import javax.swing.JButton;
+import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JList;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
@@ -21,133 +29,131 @@ import javax.swing.UIManager;
 import javax.swing.border.EmptyBorder;
 
 import polimi.distsys.sp2p.SimpleNode;
-import java.beans.PropertyChangeListener;
-import java.beans.PropertyChangeEvent;
 
 public class DisplayedWindow extends JFrame {
 
-	
+
 	private SimpleNode sn;
 	private final static String newline = "\n";
-	
+	private final static String genericSecError = "Operazione non riuscita! c'è stato un problema di sicurezza!" + newline;
+	private final static String genericComError = "Operazione non riuscita! c'è stato un problema di comunicazione!" + newline;
+
 	private JPanel contentPane;
 	private JLabel statusLabel;
-	
+
 	//TAB
 	private JTabbedPane tabbedPane;
-	private JScrollPane tabRicerca;
-	private JScrollPane tabDownload;
-	private JScrollPane tabListaFile;
-	
+	private JPanel tabRicerca;
+	private JPanel tabDownload;
+
+	//TAB PUBLISH
+	private JPanel tabListaFile;
+	private JButton publishButton;
+	private JButton unpublishButton;
+	private JScrollPane fileScrollPane;
+
+	private DefaultListModel model;
+	private JList fileVisualizationList;
+
 	//MENU
 	private JMenuBar menuBar;
 	private JMenu menuAzioni;
 	private JMenuItem joinButton;
 	private JMenuItem leaveButton;
 	private JMenuItem exitButton;
-	
+
 	//CONSOLE
 	private JPanel panel;
 	private JTextArea console;
 	private JScrollPane scrollPane;
 	private JLabel consoleTitle;
-	
-	/*
-	 * Codice da mettere nel main
-	 * DisplayedWindow frame = new DisplayedWindow(SIMPLENODE);
-	 	frame.setVisible(true);
-	 * 
-	 */
+
+	// File chooser
+	private final JFileChooser fc;
+	private JPanel innerContainer;
+
 
 	/**
 	 * Create the frame.
 	 */
 	public DisplayedWindow(SimpleNode simple) {
-		
+
 		//prendo il riferimento al nodo da visualizzare
 		this.sn = simple;
-		
-		
+
+		//init file chooser
+		fc = new JFileChooser();
+		fc.setFileSelectionMode(JFileChooser.FILES_AND_DIRECTORIES);
+
+
 
 		//GENERAL CONTAINER
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		setBounds(100, 100, 622, 478);
 		contentPane = new JPanel();
-		
+
 		contentPane.setBorder(new EmptyBorder(5, 5, 5, 5));
 		setContentPane(contentPane);
 		contentPane.setLayout(new BorderLayout(0, 0));
-		
-		//STATUS BAR
-		statusLabel = new JLabel("STATUS: DISCONNESSO" + newline);
-		statusLabel.setHorizontalAlignment(SwingConstants.CENTER);
-		statusLabel.setFont(new Font("Lucida Grande", Font.BOLD, 15));
-		contentPane.add(statusLabel, BorderLayout.NORTH);
-		
-		
-		// TABBED WINDOWS
-		tabbedPane = new JTabbedPane(JTabbedPane.TOP);
-		contentPane.add(tabbedPane, BorderLayout.CENTER);
-		
-		tabRicerca = new JScrollPane();
-		tabbedPane.addTab("Search", null, tabRicerca, null);
-		
-		tabDownload = new JScrollPane();
-		tabbedPane.addTab("Downloads", null, tabDownload, null);
-		
-		tabListaFile = new JScrollPane();
-		tabbedPane.addTab("Files", null, tabListaFile, null);
-		
-		
-		
+
+		model = new DefaultListModel();
+
+
+
+
+
 		// MENU
 		menuBar = new JMenuBar();
+		menuBar.setBackground(SystemColor.menu);
 		contentPane.add(menuBar, BorderLayout.NORTH);
-		
+
 		menuAzioni = new JMenu("Azioni");
 		menuBar.add(menuAzioni);
-		
+
 		joinButton = new JMenuItem("Join");
-		joinButton.addMouseListener(new MouseAdapter() {
-			@Override
-			public void mouseClicked(MouseEvent arg0) {
-				
+		joinButton.addActionListener(new ActionListener() {
+ 
+            public void actionPerformed(ActionEvent a)
+            {
 				try {
+					
+					
 					sn.join();
 					if (sn.isConnected()) {
 						console.append("Connessione riuscita con successo, sei connesso al supernodo: " 
-					+ sn.getSuperNode().getAddress().getHostName() + newline);
+								+ sn.getSuperNode().getAddress().getHostName() + newline);
 						statusLabel.setText("STATUS: CONNESSO @ " + sn.getSuperNode().getAddress().getHostName() + newline);
 					} else {
 						console.append("La connessione non è andata a buon fine." + newline);
 					}
-					
-					
-					
+
+
+
 				} catch (IllegalStateException e) {
 					console.append("Sei già connesso! Non puoi effettuare questa operazione!" + newline);
-					
-					
+
+
 				} catch (GeneralSecurityException e) {
-					console.append("Operazione non riuscita! c'è stato un problema di sicurezza!" + newline);
-					
+					console.append(genericSecError);
+
 				} catch (IOException e) {
-					console.append("Operazione non riuscita! c'è stato un problema di comunicazione!" + newline);
+					console.append(genericComError);
 
 				} catch (ClassNotFoundException e) {
 					e.printStackTrace();
 				}
 			}
 		});
-		
+
 		menuAzioni.add(joinButton);
-		
+
 		leaveButton = new JMenuItem("Leave");
 		menuAzioni.add(leaveButton);
-		leaveButton.addMouseListener(new MouseAdapter() {
-			@Override
-			public void mouseClicked(MouseEvent arg0) {
-				
+		leaveButton.addActionListener(new ActionListener() {
+ 
+            public void actionPerformed(ActionEvent a)
+            {
+
 				try {
 					sn.leave();
 					if (!sn.isConnected()) {
@@ -156,50 +162,127 @@ public class DisplayedWindow extends JFrame {
 					} else {
 						console.append("Problema nella disconnessione." + newline);
 					}
-					
+
 				} catch (IllegalStateException e) {
 					console.append("Non sei connesso! Non puoi effettuare questa operazione!" + newline);
-					
+
 				} catch (GeneralSecurityException e) {
-					console.append("Operazione non riuscita! c'è stato un problema di sicurezza!" + newline);
-					
+					console.append(genericSecError);
+
 				} catch (IOException e) {
-					console.append("Operazione non riuscita! c'è stato un problema di comunicazione!" + newline);
+					console.append(genericComError);
 				} 
 			}
 		});
-		
+
 		exitButton = new JMenuItem("Close");
 		menuAzioni.add(exitButton);
-		
-		exitButton.addMouseListener(new MouseAdapter() {
-			public void mouseClicked(MouseEvent arg0) {
-				
+
+		exitButton.addActionListener(new ActionListener() {
+ 
+            public void actionPerformed(ActionEvent e)
+            {
+
 				System.exit(0);
-				
+
 			}
-			
+
 		});
-		
-		
-		
+
+
+
 		// Pannello Console
-		
+
 		panel = new JPanel();
 		panel.setBorder(UIManager.getBorder("InsetBorder.aquaVariant"));
 		contentPane.add(panel, BorderLayout.SOUTH);
 		panel.setLayout(new BorderLayout(0, 0));
-		
+
 		console = new JTextArea();
+		console.setEditable(false);
 		console.setRows(8);
 		
 		scrollPane = new JScrollPane(console);
 		panel.add(scrollPane);
-		
-		
+
+
 		consoleTitle = new JLabel("Console:");
 		consoleTitle.setFont(new Font("Lucida Grande", Font.PLAIN, 13));
 		panel.add(consoleTitle, BorderLayout.NORTH);
-		
+
+		innerContainer = new JPanel();
+		contentPane.add(innerContainer, BorderLayout.CENTER);
+		innerContainer.setLayout(new BorderLayout(0, 0));
+
+
+
+		tabbedPane = new JTabbedPane(JTabbedPane.TOP);
+		innerContainer.add(tabbedPane, BorderLayout.NORTH);
+
+		tabRicerca = new JPanel();
+		tabbedPane.addTab("Search", null, tabRicerca, null);
+
+		tabDownload = new JPanel();
+		tabbedPane.addTab("Downloads", null, tabDownload, null);
+
+
+		// TAB PUBLISH
+		tabListaFile = new JPanel();
+		tabbedPane.addTab("File", null, tabListaFile, null);
+
+		tabListaFile.setLayout(new BorderLayout(0, 0));
+
+		unpublishButton = new JButton("Rimuovi");
+		publishButton = new JButton("Condividi");
+
+
+		publishButton.addMouseListener(new MouseAdapter() {
+			@Override
+			public void mouseClicked(MouseEvent arg0) {
+				int retValue = fc.showOpenDialog(tabListaFile);
+
+				if (retValue == JFileChooser.APPROVE_OPTION) {
+
+					File file = null;
+					file = fc.getSelectedFile();
+
+					try {
+						sn.publish(file.getAbsoluteFile());
+						refreshFileList();
+
+					} catch (IOException e) {
+						console.append(genericComError);
+					} catch (GeneralSecurityException e) {
+						console.append(genericSecError);
+					}
+
+				}
+
+			}
+		});
+
+		JPanel groupButton = new JPanel();
+		groupButton.add(publishButton);
+		groupButton.add(unpublishButton);
+		fileVisualizationList = new JList(model);
+		fileScrollPane = new JScrollPane(fileVisualizationList);
+
+
+		tabListaFile.add(fileScrollPane, BorderLayout.CENTER);
+		tabListaFile.add(groupButton, BorderLayout.NORTH);
+
+		//STATUS BAR
+		statusLabel = new JLabel("STATUS: DISCONNESSO" + newline);
+		innerContainer.add(statusLabel, BorderLayout.SOUTH);
+		statusLabel.setHorizontalAlignment(SwingConstants.CENTER);
+		statusLabel.setFont(new Font("Lucida Grande", Font.BOLD, 15));
+
+	}
+
+	private void refreshFileList() {
+
+
+		fileVisualizationList = new JList(sn.getFileList().toArray());
+
 	}
 }

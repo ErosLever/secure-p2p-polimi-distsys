@@ -3,7 +3,8 @@ package polimi.distsys.sp2p;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 
-import polimi.distsys.sp2p.gui.VisualizationHandler;
+import polimi.distsys.sp2p.gui.DisplayedWindow;
+
 
 public class Foo {
 
@@ -25,26 +26,19 @@ public class Foo {
 		}
 
 		// INIT SUPERNODE
-		//if(Integer.valueOf(args[0]) == 1) {
+		if(Integer.valueOf(args[0]) == 1) {
 
 			SuperNode.fromFile();
-		//}
+		}
 
 		//INIT SIMPLENODE
-		//if(Integer.valueOf(args[0]) == 2) {
+		if(Integer.valueOf(args[0]) == 2) {
 
-			SimpleNode s = SimpleNode.fromFile();
+			DisplayedWindow frame =  new DisplayedWindow(SimpleNode.fromFile());
+			frame.setVisible(true);
 
-			//start textual gui
-			//new VisualizationHandler(s);
-		//}
-			
-		s.join();
-		System.out.println("Connesso :D");
-		s.publish( s.getDownloadDirectory() );
+		}
+
 	}
-
-
-
 
 }
