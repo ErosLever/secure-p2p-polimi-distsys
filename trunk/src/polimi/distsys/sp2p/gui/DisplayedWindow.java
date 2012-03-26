@@ -10,6 +10,9 @@ import java.awt.event.MouseEvent;
 import java.io.File;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 
 import javax.swing.DefaultListModel;
 import javax.swing.JButton;
@@ -21,6 +24,7 @@ import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
 import javax.swing.JPanel;
+import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTextArea;
@@ -29,6 +33,8 @@ import javax.swing.UIManager;
 import javax.swing.border.EmptyBorder;
 
 import polimi.distsys.sp2p.SimpleNode;
+import polimi.distsys.sp2p.containers.LocalSharedFile;
+import polimi.distsys.sp2p.containers.SharedFile;
 
 public class DisplayedWindow extends JFrame {
 
@@ -51,9 +57,11 @@ public class DisplayedWindow extends JFrame {
 	private JButton publishButton;
 	private JButton unpublishButton;
 	private JScrollPane fileScrollPane;
-
+	
+	//PUBLISH LIST
 	private DefaultListModel model;
 	private JList fileVisualizationList;
+	private HashMap<String, LocalSharedFile> visualizedFiles;
 
 	//MENU
 	private JMenuBar menuBar;
@@ -232,10 +240,7 @@ public class DisplayedWindow extends JFrame {
 
 		tabListaFile.setLayout(new BorderLayout(0, 0));
 
-		unpublishButton = new JButton("Rimuovi");
 		publishButton = new JButton("Condividi");
-
-
 		publishButton.addMouseListener(new MouseAdapter() {
 			@Override
 			public void mouseClicked(MouseEvent arg0) {
@@ -248,7 +253,10 @@ public class DisplayedWindow extends JFrame {
 
 					try {
 						sn.publish(file.getAbsoluteFile());
+						console.append("ho aggiunto il file: " + file.getName() + newline);
 						refreshFileList();
+						
+						
 
 					} catch (IOException e) {
 						console.append(genericComError);
@@ -260,6 +268,38 @@ public class DisplayedWindow extends JFrame {
 
 			}
 		});
+		
+		unpublishButton = new JButton("Rimuovi");
+		unpublishButton.addMouseListener(new MouseAdapter() {
+			@Override
+			public void mouseClicked(MouseEvent arg0) {
+				//recupera l'oggetto selezionato
+				Object selected = fileVisualizationList.getSelectedValue();
+				if (selected != null) {
+					
+					//recupero l'oggetto dal nome
+					LocalSharedFile tmp = visualizedFiles.get(selected);
+					Set<LocalSharedFile> tmpSet = new HashSet<LocalSharedFile>();
+					tmpSet.add(tmp);
+					
+					try {
+						sn.unpublish(tmpSet);
+						console.append("ho rimosso il file: " + selected + newline);
+						refreshFileList();
+						
+					} catch (IOException e) {
+						console.append(genericComError);
+						
+					} catch (GeneralSecurityException e) {
+						console.append(genericSecError);
+						
+					} 
+				} else {
+					
+					new JPopupMenu("Devi selezionare un oggetto!");
+				}
+			}
+			});
 
 		JPanel groupButton = new JPanel();
 		groupButton.add(publishButton);
@@ -280,9 +320,16 @@ public class DisplayedWindow extends JFrame {
 	}
 
 	private void refreshFileList() {
-
-
-		fileVisualizationList = new JList(sn.getFileList().toArray());
+		
+		visualizedFiles = new HashMap<String, LocalSharedFile>();
+		model.removeAllElements();
+		
+		for(LocalSharedFile sf: sn.getFileList()) {
+			visualizedFiles.put(sf.getName(), sf);
+			model.addElement(sf.getName());
+		}
+		
+		
 
 	}
 }

@@ -202,6 +202,7 @@ public class SimpleNode extends Node {
 			
 			Set<RemoteSharedFile> toSend = new HashSet<RemoteSharedFile>();
 			for( LocalSharedFile lsf : fileList )
+				//TODO evitare la presenza di duplicati
 				toSend.add( new RemoteSharedFile( lsf, getNodeInfo() ) );
 			secureChannel.getOutputStream().writeVariableSize( toSend );
 			secureChannel.getOutputStream().sendDigest();
@@ -299,7 +300,7 @@ public class SimpleNode extends Node {
 	}
 	
 	private Set<LocalSharedFile> retrieveFileList(File file) throws NoSuchAlgorithmException, IOException {
-
+		
 		// scandisce la directory ( non vengono effettuate ricerche nelle sottocartelle)
 		Set<LocalSharedFile> fileList = new HashSet<LocalSharedFile>();
 		if( file.exists() && file.isDirectory() ){
