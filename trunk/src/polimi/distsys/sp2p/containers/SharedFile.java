@@ -5,6 +5,9 @@ package polimi.distsys.sp2p.containers;
 
 import java.io.Serializable;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Vector;
 
 
 /**
@@ -13,26 +16,28 @@ import java.util.Arrays;
  */
 public abstract class SharedFile implements Serializable {
 	
-	/**
-	 * 
-	 */
 	private static final long serialVersionUID = 8321633873353650401L;
-	protected final String name;
+	
+	protected final Collection<String> filenames;
 	protected final byte[] hash;
-	private final int numberOfPeers;
+	protected int numberOfPeers;
 	
 	public SharedFile( String name, byte[] hash) {
 		this( name, hash, 1 );
 	}
 	
 	public SharedFile( String name, byte[] hash, int numberOfPeers) {
-		this.name = name;
+		this( Collections.singletonList( name ), hash, numberOfPeers);
+	}
+	
+	public SharedFile( Collection<String> filenames, byte[] hash, int numberOfPeers) {
+		this.filenames = filenames;
 		this.hash = hash;
 		this.numberOfPeers = numberOfPeers;
 	}
 	
-	public String getName() {
-		return name;
+	public Collection<String> getFileNames() {
+		return filenames;
 	}
 	
 	public byte[] getHash() {
@@ -41,6 +46,10 @@ public abstract class SharedFile implements Serializable {
 	
 	public int getNumberOfPeers() {
 		return numberOfPeers;
+	}
+	
+	public boolean hasPeers(){
+		return numberOfPeers > 0;
 	}
 	
 	@Override
