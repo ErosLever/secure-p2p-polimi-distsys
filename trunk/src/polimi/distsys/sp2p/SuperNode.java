@@ -152,6 +152,27 @@ public class SuperNode extends Node implements ListenerCallback {
 						e.printStackTrace();
 					}
 					
+				case CLOSE_CONN:
+
+					for( NodeInfo i: connectedClients) {
+
+						//TODO Da controllare
+						//controllo se il nodo richiedente è connesso
+						if(i.getAddress().equals(client.socket().getLocalSocketAddress())) {
+							connectedClients.remove(i);
+
+							enSocket.getOutputStream().write( Response.OK );
+							enSocket.getOutputStream().flush();
+							enSocket.close();
+							return;
+						}
+					}
+
+					enSocket.getOutputStream().write(Response.NOT_CONNECTED);
+					enSocket.getOutputStream().flush();
+					enSocket.close();
+
+
 				default:
 					enSocket.getOutputStream().write( Response.FAIL );
 			}

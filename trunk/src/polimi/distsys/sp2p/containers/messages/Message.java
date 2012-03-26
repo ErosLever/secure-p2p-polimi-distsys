@@ -66,6 +66,6 @@ public class Message implements Serializable {
 	}
 
 	public enum Response implements Action {
-		OK, FAIL, NOSECRET, ALREADY_CONNECTED
+		OK, FAIL, NOSECRET, ALREADY_CONNECTED, NOT_CONNECTED
 	}
 }
