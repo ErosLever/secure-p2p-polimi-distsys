@@ -9,7 +9,7 @@ import polimi.distsys.sp2p.handlers.SecurityHandler;
 
 public class LocalSharedFile extends SharedFile {
 	
-	private final File file;
+	private final transient File file;
 	
 	public LocalSharedFile( String path ) throws NoSuchAlgorithmException, IOException {
 		this( new File( path ) );

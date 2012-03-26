@@ -24,7 +24,6 @@ import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
-import polimi.distsys.sp2p.containers.messages.Message;
 import polimi.distsys.sp2p.crypto.StreamCipherOutputStream.ResettableCipher;
 import polimi.distsys.sp2p.util.PortChecker;
 import polimi.distsys.sp2p.util.Serializer;
@@ -84,6 +83,7 @@ public class EncryptedSocketFactory {
 		
 		protected EncryptedSocket(Socket sock, E arg) throws GeneralSecurityException, IOException{
 			socket = sock;
+			socket.setSoTimeout( SOCKET_TIMEOUT );
 			sessionKey = handshake(arg);
 			inputStream = initInputStream();
 			outputStream = initOutputStream();
@@ -120,18 +120,6 @@ public class EncryptedSocketFactory {
 			return outputStream;
 		}
 		
-		public void writeMessage( Message msg ) throws IOException{
-			outputStream.writeVariableSize( msg );
-			outputStream.sendDigest();
-			outputStream.flush();
-		}
-		
-		public Message readMessage() throws IOException, GeneralSecurityException, ClassNotFoundException{
-			Message msg = inputStream.readObject( Message.class );
-			inputStream.checkDigest();
-			return msg;
-		}
-		
 		public InetAddress getRemoteAddress(){
 			return socket.getInetAddress();
 		}
@@ -157,6 +145,18 @@ public class EncryptedSocketFactory {
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
+		}
+		
+		public boolean isInputShutdown(){
+			return socket.isInputShutdown();
+		}
+		
+		public boolean isOutputShutdown(){
+			return socket.isOutputShutdown();
+		}
+		
+		public boolean isConnected(){
+			return ! ( isOutputShutdown() || isInputShutdown() );
 		}
 		
 	}

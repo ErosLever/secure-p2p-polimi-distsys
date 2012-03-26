@@ -39,6 +39,7 @@ public class Foo {
 
 		}
 
+		System.out.println("Pubblicato :D");
 	}
 
 }
