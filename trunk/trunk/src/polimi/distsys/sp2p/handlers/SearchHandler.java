@@ -1,9 +1,13 @@
 
 package polimi.distsys.sp2p.handlers;
 
-import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Set;
+import java.util.Vector;
 
 import polimi.distsys.sp2p.containers.RemoteSharedFile;
+import polimi.distsys.sp2p.containers.SharedFile;
 
 /**
  * @author Ale
@@ -18,55 +22,66 @@ public class SearchHandler {
 	 * @param list
 	 * @return
 	 */
-	public static ArrayList<RemoteSharedFile> localSearch(String query, ArrayList<RemoteSharedFile> list) {
+	public static List<RemoteSharedFile> localSearch(String query, List<RemoteSharedFile> list) {
 
-		ArrayList<RemoteSharedFile> search = new ArrayList<RemoteSharedFile>();
-
-		for(RemoteSharedFile rf: list) {
-			if (rf.getName().contains(query))
-				search.add(rf);
+		List<RemoteSharedFile> result = new Vector<RemoteSharedFile>();
+		
+		for( RemoteSharedFile f : list ){
+			if( matchQuery(f, query) ){
+				if( ! result.contains( f ) ){
+					result.add( f );
+					
+				}else{
+					RemoteSharedFile mine = result.get( result.indexOf( f ) );
+					mine.merge( f );
+				}
+			}
 		}
-
-		return search;
+		
+		return result;
 
 	}
 	
 	/**
 	 * Unisce due liste di file condivisi controllando eventuali duplicati
 	 * 
-	 * @param firstList
-	 * @param secondList
+	 * @param list
+	 * @param set
 	 * @return
 	 */
-	public static ArrayList<RemoteSharedFile> mergeLists(ArrayList<RemoteSharedFile> firstList, ArrayList<RemoteSharedFile> secondList){ 
-	
-		ArrayList<RemoteSharedFile> mergedList = new ArrayList<RemoteSharedFile>();
-		mergedList.addAll(firstList);
-		
-		// controllo duplicati
-		boolean found;
-		
-		for(RemoteSharedFile fileLista1 : secondList) {
-			found = false;
-			
-			for (RemoteSharedFile fileLista2 : mergedList) {
-				
-				if (fileLista1.getName().equals(fileLista2.getName()) &&
-						fileLista1.getHash().equals(fileLista2.getHash()) &&
-								fileLista1.getIp().equals(fileLista2.getIp())) {
-					
-					found = true;
-					break;
-				}
-				
+	public static List<RemoteSharedFile> mergeLists(List<RemoteSharedFile> list, Set<RemoteSharedFile> set){ 
+
+		//Aggiunge i file alla lista se non ci sono
+		for(RemoteSharedFile f : set) {
+			if(!list.contains(f))
+				list.add(f);
+			else {
+				// se il file è già presente allora lo aggiunge al numero dei peers
+				RemoteSharedFile tmp = list.get(list.indexOf(f));
+				tmp.merge(f);
 			}
-			
-			if(!found) {
-				mergedList.add(fileLista1);
-			}
-			
 		}
+		return list;
+
+	}
+	
+	/**
+	 * 
+	 * @param sf
+	 * @param query
+	 * @return
+	 */
+	private static boolean matchQuery( SharedFile sf, String query ){
 		
-		return mergedList;
+		//più criptico nn lo potevi fare? xD
+		List<String> tokens = Arrays.asList( query.split(" ") );
+		for( String name : sf.getFileNames() ){
+			List<String> pieces = Arrays.asList( name.split(" " ) );
+			pieces.retainAll( tokens );
+			if( pieces.size() > 0 ){
+				return true;
+			}
+		}
+		return false;
 	}
 }

@@ -290,7 +290,7 @@ public class SimpleNode extends Node {
 	
 	private Set<LocalSharedFile> retrieveFileList(File file) throws NoSuchAlgorithmException, IOException {
 		
-		// scandisce la directory ( non vengono effettuate ricerche nelle sottocartelle)
+		
 		Set<LocalSharedFile> fileList = new HashSet<LocalSharedFile>();
 		if( file.exists() && file.isDirectory() ){
 
@@ -324,6 +324,7 @@ public class SimpleNode extends Node {
 
 	
 	}
+	
 	
 	public void closeConnection() throws IllegalStateException, GeneralSecurityException, IOException, ClassNotFoundException {
 		

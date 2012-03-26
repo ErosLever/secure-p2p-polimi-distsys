@@ -182,7 +182,7 @@ public class DisplayedWindow extends JFrame {
 						console.append(e.getMessage() + newline);
 					console.append(genericComError);
 				} catch (ClassNotFoundException e) {
-					
+				
 				} 
 			}
 		});
