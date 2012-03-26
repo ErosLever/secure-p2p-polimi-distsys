@@ -43,7 +43,7 @@ public class DisplayedWindow extends JFrame {
 	private final static String newline = "\n";
 	private final static String genericSecError = "Operazione non riuscita! c'è stato un problema di sicurezza!" + newline;
 	private final static String genericComError = "Operazione non riuscita! c'è stato un problema di comunicazione!" + newline;
-
+	private final static String notConnectstate = "Devi essere connesso per fare questa operazione!" + newline;
 	private JPanel contentPane;
 	private JLabel statusLabel;
 
@@ -178,7 +178,11 @@ public class DisplayedWindow extends JFrame {
 					console.append(genericSecError);
 
 				} catch (IOException e) {
+					if(!e.getMessage().isEmpty())
+						console.append(e.getMessage() + newline);
 					console.append(genericComError);
+				} catch (ClassNotFoundException e) {
+					
 				} 
 			}
 		});
@@ -262,6 +266,10 @@ public class DisplayedWindow extends JFrame {
 						console.append(genericComError);
 					} catch (GeneralSecurityException e) {
 						console.append(genericSecError);
+					} catch (IllegalStateException e) {
+						console.append(notConnectstate);
+					} catch (ClassNotFoundException e) {
+					
 					}
 
 				}
@@ -292,6 +300,11 @@ public class DisplayedWindow extends JFrame {
 						
 					} catch (GeneralSecurityException e) {
 						console.append(genericSecError);
+						
+					} catch (IllegalStateException e) {
+						console.append(notConnectstate);
+						
+					} catch (ClassNotFoundException e) {
 						
 					} 
 				} else {
@@ -325,8 +338,8 @@ public class DisplayedWindow extends JFrame {
 		model.removeAllElements();
 		
 		for(LocalSharedFile sf: sn.getFileList()) {
-			visualizedFiles.put(sf.getName(), sf);
-			model.addElement(sf.getName());
+			visualizedFiles.put(sf.getFile().getName(), sf);
+			model.addElement(sf.getFile().getName());
 		}
 		
 		

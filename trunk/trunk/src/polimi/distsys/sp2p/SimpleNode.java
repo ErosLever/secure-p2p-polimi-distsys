@@ -159,8 +159,10 @@ public class SimpleNode extends Node {
 	 * 
 	 * @throws GeneralSecurityException 
 	 * @throws IOException 
+	 * @throws ClassNotFoundException 
+	 * @throws IllegalStateException 
 	 */
-	public void leave() throws IOException, GeneralSecurityException {
+	public void leave() throws IOException, GeneralSecurityException, IllegalStateException, ClassNotFoundException {
 		
 		try {
 			
@@ -174,20 +176,21 @@ public class SimpleNode extends Node {
 				supernode = null;
 
 			}else{
-				throw new IOException("Something went wrong while leaving");
+				throw new IOException("Something went wrong while leaving (IO)");
 			}
 		} catch (IllegalStateException e) {
 			throw e;
 		} catch (ClassNotFoundException e) {
-			throw new IOException("Something went wrong while leaving");
+			throw new IOException("Something went wrong while leaving (Class)");
 		} 
 		finally {
-			if( secureChannel != null ){
-				secureChannel.close();
+			
+			closeConnection();
+			
 			}
 		}
 
-	}
+	
 
 	// PUBLISH 
 	/**
@@ -304,11 +307,26 @@ public class SimpleNode extends Node {
 	}
 
 	//SEARCH
-	public void search(String query) {
+	public void search(String query) throws IllegalStateException, GeneralSecurityException, IOException, ClassNotFoundException {
+		
+		checkConnectionWithSuperNode();
+		
+		secureChannel.getOutputStream().write( Request.SEARCH );
 
-		//COSTRUISCE IL MESSAGGIO PER IL SUPERNODO
-		//ATTENDE LA RISPOSTA
-		//RIEMPIE LA LISTA 
+		Response reply = secureChannel.getInputStream().readEnum( Response.class );
+
+		if( reply == Response.OK )  {}
+
+	
+	}
+	
+	public void closeConnection() throws IllegalStateException, GeneralSecurityException, IOException, ClassNotFoundException {
+		
+		checkConnectionWithSuperNode();
+		secureChannel.getOutputStream().write( Request.CLOSE_CONN );
+		secureChannel.close();
+		secureChannel = null;
+		
 	}
 
 	// GETTER & SETTER
