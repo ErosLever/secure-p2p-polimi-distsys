@@ -109,7 +109,7 @@ public class SuperNode extends Node implements ListenerCallback {
 					? connectedClients.get( enSocket.getClientPublicKey() )
 					: null;
 			
-			while(true){
+loop:		while(true){
 
 				Request req = enSocket.getInputStream().readEnum( Request.class );
 	
@@ -164,7 +164,7 @@ public class SuperNode extends Node implements ListenerCallback {
 						
 						if( clientNode != null ){
 							//TODO unpublish shared files
-							connectedClients.remove( clientNode );
+							connectedClients.remove( clientNode.getPublicKey() );
 							enSocket.getOutputStream().write( Response.OK );
 						}else{
 							enSocket.getOutputStream().write(Response.NOT_CONNECTED);
@@ -202,6 +202,7 @@ public class SuperNode extends Node implements ListenerCallback {
 					case CLOSE_CONN:
 						
 						enSocket.close();
+						break loop;
 				}
 			
 			}

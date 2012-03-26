@@ -26,7 +26,7 @@ public class Foo {
 		}
 
 		// INIT SUPERNODE
-		if(Integer.valueOf(args[0]) == 1) {
+		if(true){//Integer.valueOf(args[0]) == 1) {
 
 			SuperNode.fromFile();
 		}
