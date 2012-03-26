@@ -262,7 +262,7 @@ public class SimpleNode extends Node {
 		checkConnectionWithSuperNode();
 
 		secureChannel.getOutputStream().write( Request.UNPUBLISH );
-		secureChannel.getOutputStream().write( list );
+		secureChannel.getOutputStream().writeVariableSize( list );
 		secureChannel.getOutputStream().sendDigest();
 		secureChannel.getOutputStream().flush();
 
