@@ -116,14 +116,15 @@ public class SuperNode extends Node implements ListenerCallback {
 				switch(req) {
 				
 					case LOGIN:
-						int port = enSocket.getInputStream().readInt();
-						InetSocketAddress isa = new InetSocketAddress( enSocket.getRemoteAddress(), port);
-						clientNode = new NodeInfo( enSocket.getClientPublicKey(), isa, false );
-						enSocket.getInputStream().checkDigest();
 						
 						if( clientNode != null ){
 							enSocket.getOutputStream().write( Response.ALREADY_CONNECTED );
 						}else{
+							int port = enSocket.getInputStream().readInt();
+							InetSocketAddress isa = new InetSocketAddress( enSocket.getRemoteAddress(), port);
+							clientNode = new NodeInfo( enSocket.getClientPublicKey(), isa, false );
+							enSocket.getInputStream().checkDigest();
+							
 							connectedClients.put( enSocket.getClientPublicKey(), clientNode );
 							enSocket.getOutputStream().write( Response.OK );
 							enSocket.getOutputStream().write( enSocket.getRemoteAddress().getAddress() );
