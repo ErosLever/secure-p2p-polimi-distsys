@@ -169,6 +169,7 @@ public class SimpleNode extends Node {
 			checkConnectionWithSuperNode();
 
 			secureChannel.getOutputStream().write( Request.LEAVE );
+			secureChannel.getOutputStream().flush();
 
 			Response reply = secureChannel.getInputStream().readEnum( Response.class );
 
@@ -187,6 +188,7 @@ public class SimpleNode extends Node {
 			
 			closeConnection();
 			
+				secureChannel = null;
 			}
 		}
 
@@ -322,10 +324,13 @@ public class SimpleNode extends Node {
 	
 	public void closeConnection() throws IllegalStateException, GeneralSecurityException, IOException, ClassNotFoundException {
 		
-		checkConnectionWithSuperNode();
-		secureChannel.getOutputStream().write( Request.CLOSE_CONN );
-		secureChannel.close();
-		secureChannel = null;
+		if(secureChannel != null){
+			if(secureChannel.isConnected()){
+				secureChannel.getOutputStream().write( Request.CLOSE_CONN );
+			}
+			secureChannel.close();
+			secureChannel = null;
+		}
 		
 	}
 
