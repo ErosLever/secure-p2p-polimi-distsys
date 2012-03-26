@@ -11,12 +11,15 @@ import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
 import java.util.Set;
+import java.util.Vector;
 
 import polimi.distsys.sp2p.containers.NodeInfo;
 import polimi.distsys.sp2p.containers.RemoteSharedFile;
+import polimi.distsys.sp2p.containers.SharedFile;
 import polimi.distsys.sp2p.containers.messages.Message.Request;
 import polimi.distsys.sp2p.containers.messages.Message.Response;
 import polimi.distsys.sp2p.crypto.EncryptedSocketFactory.EncryptedServerSocket;
@@ -44,9 +47,9 @@ public class SuperNode extends Node implements ListenerCallback {
 	// struttura dati in cui vengono salvate le credenziali dei nodi ( public keys )
 	private final Set<PublicKey> credentials;
 
-	private final Set<NodeInfo> connectedClients;
+	private final Map<PublicKey, NodeInfo> connectedClients;
 
-	private final Map<String, Set<RemoteSharedFile>> files; 
+	private final List<RemoteSharedFile> files; 
 
 	private final Listener listener;
 
@@ -75,8 +78,8 @@ public class SuperNode extends Node implements ListenerCallback {
 		super( pub, priv, sock );
 
 		this.credentials = new HashSet<PublicKey>();
-		this.connectedClients = new HashSet<NodeInfo>();
-		this.files = new HashMap<String, Set<RemoteSharedFile>>();
+		this.connectedClients = new HashMap<PublicKey, NodeInfo>();
+		this.files = new Vector<RemoteSharedFile>();
 
 		//legge le credenziali
 		Scanner sc = new Scanner( new FileInputStream( credentials ) );
@@ -100,14 +103,15 @@ public class SuperNode extends Node implements ListenerCallback {
 	public void handleRequest(SocketChannel client) {
 
 		try {
-			EncryptedServerSocket enSocket = enSockFact.getEncryptedServerSocket(client.socket(), credentials);
+			EncryptedServerSocket enSocket = enSockFact.getEncryptedServerSocket(
+					client.socket(), credentials);
+			NodeInfo clientNode = connectedClients.containsKey( enSocket.getClientPublicKey() )
+					? connectedClients.get( enSocket.getClientPublicKey() )
+					: null;
 
 			while(true){
 
 				Request req = enSocket.getInputStream().readEnum( Request.class );
-				int port = enSocket.getInputStream().readInt();
-				InetSocketAddress isa = new InetSocketAddress( enSocket.getRemoteAddress(), port);
-				NodeInfo clientNode = new NodeInfo( enSocket.getClientPublicKey(), isa, false );
 
 				switch(req) {
 
@@ -131,16 +135,18 @@ public class SuperNode extends Node implements ListenerCallback {
 					try {
 						Set<RemoteSharedFile> list = enSocket.getInputStream()
 								.readObject( Set.class );
+						int port = enSocket.getInputStream().readInt();
+						InetSocketAddress isa = new InetSocketAddress( enSocket.getRemoteAddress(), port);
+						clientNode = new NodeInfo( enSocket.getClientPublicKey(), isa, false );
 						enSocket.getInputStream().checkDigest();
-
-						for( RemoteSharedFile rsf : list ){
-							String id = Serializer.byteArrayToHexString( rsf.getHash() );
-							if( ! files.containsKey( id ) ){
-								files.put( id, new HashSet<RemoteSharedFile>() );
-							}
-							if( ! files.get( id ).contains( rsf ) ){
-								files.get( id ).add( rsf );
-							}
+						
+						if( clientNode != null ){
+							enSocket.getOutputStream().write( Response.ALREADY_CONNECTED );
+						}else{
+							connectedClients.put( enSocket.getClientPublicKey(), clientNode );
+							enSocket.getOutputStream().write( Response.OK );
+							enSocket.getOutputStream().write( enSocket.getRemoteAddress().getAddress() );
+							enSocket.getOutputStream().sendDigest();
 						}
 
 						enSocket.getOutputStream().write( Response.OK );
@@ -164,19 +170,21 @@ public class SuperNode extends Node implements ListenerCallback {
 				case UNPUBLISH:
 					try {
 						
-						boolean removed = false;
-						Set<RemoteSharedFile> removeList = enSocket.getInputStream()
-								.readObject( Set.class );
-						enSocket.getInputStream().checkDigest();
-
-						for( RemoteSharedFile rsf : removeList ){
-							String id = Serializer.byteArrayToHexString( rsf.getHash() );
-
-							Set<RemoteSharedFile> tmp = files.get(id);
-							if(tmp.contains(rsf)) {
-								tmp.remove(rsf);
-								removed = true;
+						try {
+							Set<RemoteSharedFile> list = enSocket.getInputStream()
+									.readObject( Set.class );
+							enSocket.getInputStream().checkDigest();
+							
+							for( SharedFile sf : list ){
+								String filename = sf.getFileNames().iterator().next();
 								
+								if( ! files.contains( sf ) ){
+									RemoteSharedFile rsf = new RemoteSharedFile(
+											sf.getHash(), filename, clientNode );
+									files.add( rsf );
+								}else{
+									files.get( files.indexOf( sf ) ).addPeer( filename, clientNode );
+								}
 							}
 							
 						}
@@ -185,26 +193,56 @@ public class SuperNode extends Node implements ListenerCallback {
 						else
 							enSocket.getOutputStream().write( Response.FAIL );
 						
+					case LEAVE:
+						
+						if( clientNode != null ){
+							//TODO unpublish shared files
+							connectedClients.remove( clientNode );
+							enSocket.getOutputStream().write( Response.OK );
+						}else{
+							enSocket.getOutputStream().write(Response.NOT_CONNECTED);
+						}
 						enSocket.getOutputStream().flush();
-
-					} catch (ClassNotFoundException e) {
-
-						e.printStackTrace();
-					}
-					
-				default:
-
-					enSocket.getOutputStream().write( Response.FAIL );
-
-				case CLOSE_CONN:
-
-					enSocket.close();
+						break;
+						
+					case UNPUBLISH:
+						
+						if( clientNode != null ){
+							
+							Set<RemoteSharedFile> list = enSocket.getInputStream()
+									.readObject( Set.class );
+							enSocket.getInputStream().checkDigest();
+							
+							for( SharedFile sf : list ){
+								String filename = sf.getFileNames().iterator().next();
+								RemoteSharedFile rsf = new RemoteSharedFile(
+										sf.getHash(), filename, clientNode );
+								if( ! files.contains( rsf ) ){
+									// weird :-/
+									continue;
+								}
+								files.get( files.indexOf( rsf ) ).removePeer( clientNode );
+							}
+							enSocket.getOutputStream().write( Response.OK );
+							enSocket.getOutputStream().flush();
+							
+						}
+						
+					default:
+						
+						enSocket.getOutputStream().write( Response.FAIL );
+	
+					case CLOSE_CONN:
+						
+						enSocket.close();
 				}
 
 			}
 		}catch(IOException e){
 			e.printStackTrace();
 		}catch(GeneralSecurityException e){
+			e.printStackTrace();
+		} catch (ClassNotFoundException e) {
 			e.printStackTrace();
 		}
 	}
