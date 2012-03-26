@@ -39,7 +39,7 @@ public class Foo {
 
 		}
 
-		System.out.println("Pubblicato :D");
+		System.out.println("Running :D");
 	}
 
 }

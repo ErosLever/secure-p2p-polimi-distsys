@@ -314,6 +314,9 @@ public class SimpleNode extends Node {
 		checkConnectionWithSuperNode();
 		
 		secureChannel.getOutputStream().write( Request.SEARCH );
+		secureChannel.getOutputStream().writeVariableSize( query.getBytes("utf-8") );
+		secureChannel.getOutputStream().sendDigest();
+		secureChannel.getOutputStream().flush();
 
 		Response reply = secureChannel.getInputStream().readEnum( Response.class );
 
