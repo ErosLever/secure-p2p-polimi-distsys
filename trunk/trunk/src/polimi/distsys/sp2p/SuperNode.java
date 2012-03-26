@@ -46,11 +46,11 @@ public class SuperNode extends Node implements ListenerCallback {
 
 	// struttura dati in cui vengono salvate le credenziali dei nodi ( public keys )
 	private final Set<PublicKey> credentials;
-
+	
 	private final Map<PublicKey, NodeInfo> connectedClients;
-
+	
 	private final List<RemoteSharedFile> files; 
-
+	
 	private final Listener listener;
 
 	public static SuperNode fromFile() throws IOException, ClassNotFoundException, GeneralSecurityException{
@@ -60,7 +60,7 @@ public class SuperNode extends Node implements ListenerCallback {
 	public static SuperNode fromFile( File file ) throws IOException, ClassNotFoundException, GeneralSecurityException{
 		return fromFile( file, new File( CREDENTIALS_FILE ) );
 	}
-
+	
 	public static SuperNode fromFile( File file, File credentials) throws IOException, ClassNotFoundException, GeneralSecurityException{
 		//legge il file per recuperare chiave pubblica, privata, indirizzo e porta del nodo
 		Scanner sc = new Scanner( new FileInputStream( file ) );
@@ -108,33 +108,14 @@ public class SuperNode extends Node implements ListenerCallback {
 			NodeInfo clientNode = connectedClients.containsKey( enSocket.getClientPublicKey() )
 					? connectedClients.get( enSocket.getClientPublicKey() )
 					: null;
-
+			
 			while(true){
 
 				Request req = enSocket.getInputStream().readEnum( Request.class );
-
+	
 				switch(req) {
-
-				case LOGIN:
-					enSocket.getInputStream().checkDigest();
-
-					if( connectedClients.contains( clientNode ) ){
-						enSocket.getOutputStream().write( Response.ALREADY_CONNECTED );
-					}else{
-						connectedClients.add( clientNode );
-						enSocket.getOutputStream().write( Response.OK );
-						enSocket.getOutputStream().write( enSocket.getRemoteAddress().getAddress() );
-						enSocket.getOutputStream().sendDigest();
-					}
-					enSocket.getOutputStream().flush();
-
-					break;
-
-				case PUBLISH:
-
-					try {
-						Set<RemoteSharedFile> list = enSocket.getInputStream()
-								.readObject( Set.class );
+				
+					case LOGIN:
 						int port = enSocket.getInputStream().readInt();
 						InetSocketAddress isa = new InetSocketAddress( enSocket.getRemoteAddress(), port);
 						clientNode = new NodeInfo( enSocket.getClientPublicKey(), isa, false );
@@ -148,27 +129,11 @@ public class SuperNode extends Node implements ListenerCallback {
 							enSocket.getOutputStream().write( enSocket.getRemoteAddress().getAddress() );
 							enSocket.getOutputStream().sendDigest();
 						}
-
-						enSocket.getOutputStream().write( Response.OK );
 						enSocket.getOutputStream().flush();
-					} catch (ClassNotFoundException e) {
-						e.printStackTrace();
-					}
-					break;
-
-				case LEAVE:
-
-					if( connectedClients.contains( clientNode ) ){
-						connectedClients.remove( clientNode );
-						enSocket.getOutputStream().write( Response.OK );
-					}else{
-						enSocket.getOutputStream().write(Response.NOT_CONNECTED);
-					}
-					enSocket.getOutputStream().flush();
-					break;
-
-				case UNPUBLISH:
-					try {
+		
+						break;
+		
+					case PUBLISH:
 						
 						try {
 							Set<RemoteSharedFile> list = enSocket.getInputStream()
@@ -187,11 +152,12 @@ public class SuperNode extends Node implements ListenerCallback {
 								}
 							}
 							
-						}
-						if(removed) 
 							enSocket.getOutputStream().write( Response.OK );
-						else
-							enSocket.getOutputStream().write( Response.FAIL );
+							enSocket.getOutputStream().flush();
+						} catch (ClassNotFoundException e) {
+							e.printStackTrace();
+						}
+						break;
 						
 					case LEAVE:
 						
@@ -236,7 +202,7 @@ public class SuperNode extends Node implements ListenerCallback {
 						
 						enSocket.close();
 				}
-
+			
 			}
 		}catch(IOException e){
 			e.printStackTrace();
