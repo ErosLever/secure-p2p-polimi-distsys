@@ -137,7 +137,7 @@ loop:		while(true){
 					case PUBLISH:
 						
 						try {
-							Set<RemoteSharedFile> list = enSocket.getInputStream()
+							Set<SharedFile> list = enSocket.getInputStream()
 									.readObject( Set.class );
 							enSocket.getInputStream().checkDigest();
 							
@@ -182,18 +182,23 @@ loop:		while(true){
 							
 							for( SharedFile sf : list ){
 								String filename = sf.getFileNames().iterator().next();
-								RemoteSharedFile rsf = new RemoteSharedFile(
-										sf.getHash(), filename, clientNode );
-								if( ! files.contains( rsf ) ){
+								if( ! files.contains( sf ) ){
 									// weird :-/
 									continue;
 								}
-								files.get( files.indexOf( rsf ) ).removePeer( clientNode );
+								RemoteSharedFile rsf = files.get( files.indexOf( sf ) );
+								rsf.removePeer( clientNode );
+								if(!rsf.hasPeers())
+									files.remove( rsf );
 							}
 							enSocket.getOutputStream().write( Response.OK );
 							enSocket.getOutputStream().flush();
 							
+						}else{
+							enSocket.getOutputStream().write( Response.NOT_CONNECTED );
+							enSocket.getOutputStream().flush();
 						}
+						break;
 						
 					default:
 						
