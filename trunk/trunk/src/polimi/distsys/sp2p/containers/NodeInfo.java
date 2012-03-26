@@ -7,7 +7,7 @@ import java.security.PublicKey;
 import polimi.distsys.sp2p.Node;
 import polimi.distsys.sp2p.SuperNode;
 
-public class NodeInfo implements Comparable<NodeInfo>, Serializable {
+public class NodeInfo implements Serializable {
 
 	/**
 	 * 
@@ -44,13 +44,11 @@ public class NodeInfo implements Comparable<NodeInfo>, Serializable {
 	}
 
 	@Override
-	public int compareTo(NodeInfo o) {
-		if(o.isSuper && !this.isSuper)
-			return -1;
-		else if(!o.isSuper && this.isSuper)
-			return 1;
-		else
-			return address.hashCode() - o.address.hashCode();
+	public boolean equals(Object o) {
+		if( o instanceof NodeInfo ) {
+			return ((NodeInfo)o).publicKey.equals( publicKey );
+		}
+		return false;
 	}
 
 }

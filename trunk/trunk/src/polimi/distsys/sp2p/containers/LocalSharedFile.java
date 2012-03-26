@@ -23,5 +23,9 @@ public class LocalSharedFile extends SharedFile {
 	public File getFile() {
 		return file;
 	}
+	
+	public String getName(){
+		return filenames.iterator().next();
+	}
 
 }
