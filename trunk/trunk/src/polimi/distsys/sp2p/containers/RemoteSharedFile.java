@@ -35,6 +35,13 @@ public class RemoteSharedFile extends SharedFile implements Serializable {
 		numberOfPeers--;
 	}
 	
+	public void merge( RemoteSharedFile rsf ){
+		for( NodeInfo ni : rsf.peers.keySet() ){
+			if( ! peers.containsKey( ni ) )
+				peers.put( ni, rsf.peers.get( ni ) );
+		}
+	}
+	
 	@Override
 	public Collection<String> getFileNames() {
 		return peers.values();

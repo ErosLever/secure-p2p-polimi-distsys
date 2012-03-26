@@ -9,12 +9,15 @@ import java.nio.channels.SocketChannel;
 import java.security.GeneralSecurityException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
 import java.util.Set;
+import java.util.StringTokenizer;
 import java.util.Vector;
 
 import polimi.distsys.sp2p.containers.NodeInfo;
@@ -22,6 +25,7 @@ import polimi.distsys.sp2p.containers.RemoteSharedFile;
 import polimi.distsys.sp2p.containers.SharedFile;
 import polimi.distsys.sp2p.containers.messages.Message.Request;
 import polimi.distsys.sp2p.containers.messages.Message.Response;
+import polimi.distsys.sp2p.crypto.EncryptedSocketFactory.EncryptedClientSocket;
 import polimi.distsys.sp2p.crypto.EncryptedSocketFactory.EncryptedServerSocket;
 import polimi.distsys.sp2p.util.Listener;
 import polimi.distsys.sp2p.util.PortChecker;
@@ -163,7 +167,19 @@ loop:		while(true){
 					case LEAVE:
 						
 						if( clientNode != null ){
-							//TODO unpublish shared files
+							
+							Set<RemoteSharedFile> toDelete = new HashSet<RemoteSharedFile>();
+							for( RemoteSharedFile rsf : files ){
+								if( rsf.getPeers().contains( clientNode ) ){
+									rsf.removePeer( clientNode );
+									if( ! rsf.hasPeers() )
+										toDelete.add( rsf );
+								}
+							}
+							for( RemoteSharedFile rsf : toDelete ){
+								files.remove( rsf );
+							}
+							
 							connectedClients.remove( clientNode.getPublicKey() );
 							enSocket.getOutputStream().write( Response.OK );
 						}else{
@@ -199,6 +215,64 @@ loop:		while(true){
 							enSocket.getOutputStream().flush();
 						}
 						break;
+					
+					case SEARCH:
+						
+						String query = new String( enSocket.getInputStream().readVariableSize(), "utf-8" );
+						enSocket.getInputStream().checkDigest();
+						
+						List<RemoteSharedFile> toSend = new Vector<RemoteSharedFile>();
+						
+						// forward query to other supernodes
+						for( NodeInfo supernode : rh.getSupernodeList() ){
+							// avoid myself ;)
+							if( supernode.equals( this ) )
+								continue;
+							
+							//connect to the other supernode
+							EncryptedClientSocket ecs = enSockFact.getEncryptedClientSocket( 
+									supernode.getAddress(), supernode.getPublicKey() );
+							
+							//forward
+							ecs.getOutputStream().write( Request.FORWARD_SEARCH );
+							ecs.getOutputStream().writeVariableSize( query.getBytes("utf-8") );
+							ecs.getOutputStream().sendDigest();
+							
+							//read response
+							Response reply = ecs.getInputStream().readEnum( Response.class );
+							if( reply.equals( Response.OK ) ){
+								Set<RemoteSharedFile> result = ecs.getInputStream().readObject( Set.class );
+								ecs.getInputStream().checkDigest();
+								for( RemoteSharedFile sf : result ){
+									if( ! toSend.contains( sf ) ){
+										toSend.add( sf );
+									}else{
+										RemoteSharedFile mine = toSend.get( toSend.indexOf( sf ) );
+										mine.merge( sf );
+									}
+								}
+							}
+							
+						}
+						
+						//merge with my results
+						for( RemoteSharedFile sf : files ){
+							if( matchQuery(sf, query) ){
+								if( ! toSend.contains( sf ) ){
+									toSend.add( sf );
+								}else{
+									RemoteSharedFile mine = toSend.get( toSend.indexOf( sf ) );
+									mine.merge( sf );
+								}
+							}
+						}
+						
+						//send back to the client
+						enSocket.getOutputStream().write( Response.OK );
+						enSocket.getOutputStream().writeVariableSize( toSend );
+						enSocket.getOutputStream().sendDigest();
+						enSocket.getOutputStream().flush();
+						break;
 						
 					default:
 						
@@ -218,6 +292,18 @@ loop:		while(true){
 		} catch (ClassNotFoundException e) {
 			e.printStackTrace();
 		}
+	}
+
+	public static boolean matchQuery( SharedFile sf, String query ){
+		List<String> tokens = Arrays.asList( query.split(" ") );
+		for( String name : sf.getFileNames() ){
+			List<String> pieces = Arrays.asList( name.split(" " ) );
+			pieces.retainAll( tokens );
+			if( pieces.size() > 0 ){
+				return true;
+			}
+		}
+		return false;
 	}
 
 	@Override
