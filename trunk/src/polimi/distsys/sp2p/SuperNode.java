@@ -43,11 +43,11 @@ public class SuperNode extends Node implements ListenerCallback {
 
 	// struttura dati in cui vengono salvate le credenziali dei nodi ( public keys )
 	private final Set<PublicKey> credentials;
-	
+
 	private final Set<NodeInfo> connectedClients;
-	
+
 	private final Map<String, Set<RemoteSharedFile>> files; 
-	
+
 	private final Listener listener;
 
 	public static SuperNode fromFile() throws IOException, ClassNotFoundException, GeneralSecurityException{
@@ -57,7 +57,7 @@ public class SuperNode extends Node implements ListenerCallback {
 	public static SuperNode fromFile( File file ) throws IOException, ClassNotFoundException, GeneralSecurityException{
 		return fromFile( file, new File( CREDENTIALS_FILE ) );
 	}
-	
+
 	public static SuperNode fromFile( File file, File credentials) throws IOException, ClassNotFoundException, GeneralSecurityException{
 		//legge il file per recuperare chiave pubblica, privata, indirizzo e porta del nodo
 		Scanner sc = new Scanner( new FileInputStream( file ) );
@@ -101,75 +101,106 @@ public class SuperNode extends Node implements ListenerCallback {
 
 		try {
 			EncryptedServerSocket enSocket = enSockFact.getEncryptedServerSocket(client.socket(), credentials);
-			
+
 			while(true){
 
 				Request req = enSocket.getInputStream().readEnum( Request.class );
 				int port = enSocket.getInputStream().readInt();
 				InetSocketAddress isa = new InetSocketAddress( enSocket.getRemoteAddress(), port);
 				NodeInfo clientNode = new NodeInfo( enSocket.getClientPublicKey(), isa, false );
-	
+
 				switch(req) {
-				
-					case LOGIN:
+
+				case LOGIN:
+					enSocket.getInputStream().checkDigest();
+
+					if( connectedClients.contains( clientNode ) ){
+						enSocket.getOutputStream().write( Response.ALREADY_CONNECTED );
+					}else{
+						connectedClients.add( clientNode );
+						enSocket.getOutputStream().write( Response.OK );
+						enSocket.getOutputStream().write( enSocket.getRemoteAddress().getAddress() );
+						enSocket.getOutputStream().sendDigest();
+					}
+					enSocket.getOutputStream().flush();
+
+					break;
+
+				case PUBLISH:
+
+					try {
+						Set<RemoteSharedFile> list = enSocket.getInputStream()
+								.readObject( Set.class );
 						enSocket.getInputStream().checkDigest();
-						
-						if( connectedClients.contains( clientNode ) ){
-							enSocket.getOutputStream().write( Response.ALREADY_CONNECTED );
-						}else{
-							connectedClients.add( clientNode );
-							enSocket.getOutputStream().write( Response.OK );
-							enSocket.getOutputStream().write( enSocket.getRemoteAddress().getAddress() );
-							enSocket.getOutputStream().sendDigest();
+
+						for( RemoteSharedFile rsf : list ){
+							String id = Serializer.byteArrayToHexString( rsf.getHash() );
+							if( ! files.containsKey( id ) ){
+								files.put( id, new HashSet<RemoteSharedFile>() );
+							}
+							if( ! files.get( id ).contains( rsf ) ){
+								files.get( id ).add( rsf );
+							}
 						}
+
+						enSocket.getOutputStream().write( Response.OK );
 						enSocket.getOutputStream().flush();
-		
-						break;
-		
-					case PUBLISH:
+					} catch (ClassNotFoundException e) {
+						e.printStackTrace();
+					}
+					break;
+
+				case LEAVE:
+
+					if( connectedClients.contains( clientNode ) ){
+						connectedClients.remove( clientNode );
+						enSocket.getOutputStream().write( Response.OK );
+					}else{
+						enSocket.getOutputStream().write(Response.NOT_CONNECTED);
+					}
+					enSocket.getOutputStream().flush();
+					break;
+
+				case UNPUBLISH:
+					try {
 						
-						try {
-							Set<RemoteSharedFile> list = enSocket.getInputStream()
-									.readObject( Set.class );
-							enSocket.getInputStream().checkDigest();
-							
-							for( RemoteSharedFile rsf : list ){
-								String id = Serializer.byteArrayToHexString( rsf.getHash() );
-								if( ! files.containsKey( id ) ){
-									files.put( id, new HashSet<RemoteSharedFile>() );
-								}
-								if( ! files.get( id ).contains( rsf ) ){
-									files.get( id ).add( rsf );
-								}
+						boolean removed = false;
+						Set<RemoteSharedFile> removeList = enSocket.getInputStream()
+								.readObject( Set.class );
+						enSocket.getInputStream().checkDigest();
+
+						for( RemoteSharedFile rsf : removeList ){
+							String id = Serializer.byteArrayToHexString( rsf.getHash() );
+
+							Set<RemoteSharedFile> tmp = files.get(id);
+							if(tmp.contains(rsf)) {
+								tmp.remove(rsf);
+								removed = true;
+								
 							}
 							
-							enSocket.getOutputStream().write( Response.OK );
-							enSocket.getOutputStream().flush();
-						} catch (ClassNotFoundException e) {
-							e.printStackTrace();
 						}
-						break;
-						
-					case LEAVE:
-						
-						if( connectedClients.contains( clientNode ) ){
-							connectedClients.remove( clientNode );
+						if(removed) 
 							enSocket.getOutputStream().write( Response.OK );
-						}else{
-							enSocket.getOutputStream().write(Response.NOT_CONNECTED);
-						}
+						else
+							enSocket.getOutputStream().write( Response.FAIL );
+						
 						enSocket.getOutputStream().flush();
-						break;
-						
-					default:
-						
-						enSocket.getOutputStream().write( Response.FAIL );
-	
-					case CLOSE_CONN:
-						
-						enSocket.close();
+
+					} catch (ClassNotFoundException e) {
+
+						e.printStackTrace();
+					}
+					
+				default:
+
+					enSocket.getOutputStream().write( Response.FAIL );
+
+				case CLOSE_CONN:
+
+					enSocket.close();
 				}
-			
+
 			}
 		}catch(IOException e){
 			e.printStackTrace();
