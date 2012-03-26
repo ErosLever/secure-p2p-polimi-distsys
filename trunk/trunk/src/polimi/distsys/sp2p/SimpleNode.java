@@ -208,24 +208,41 @@ public class SimpleNode extends Node {
 
 		checkConnectionWithSuperNode();
 		
-		secureChannel.getOutputStream().write( Request.PUBLISH );
+		Set<LocalSharedFile> toSend = new HashSet<LocalSharedFile>();
 		
-		secureChannel.getOutputStream().writeVariableSize( fileList );
-		secureChannel.getOutputStream().sendDigest();
-		secureChannel.getOutputStream().flush();
+		//evita duplicati
+		for( LocalSharedFile f : fileList) {
+			if(!this.fileList.contains(f)) {
+				toSend.add(f);
+			}
+		}
+		//manda solo i file che non erano già presenti nella lista
+		if (!toSend.isEmpty()) {
+			
+			secureChannel.getOutputStream().write( Request.PUBLISH );
 
+			secureChannel.getOutputStream().writeVariableSize( toSend );
+			secureChannel.getOutputStream().sendDigest();
+			secureChannel.getOutputStream().flush();
+		
 		
 		Response reply = secureChannel.getInputStream().readEnum( Response.class );
 		if( reply == Response.OK ){
-			this.fileList.addAll( fileList );
+			this.fileList.addAll( toSend );
 		}else{
 			
 			//TODO NON DOVREMMO DISCONNETTERE IL NODO IN QUESTO CASO
 			
 			/* ci sarebbe da fare una catch della io exception e disconnettere nel caso il nodo dalla rete
 			 */
-			throw new IOException( "Something went wrong while publishin'" );
+			throw new IOException( "Qualcosa è andato storto!" );
+		} 
+		} else {
+			
+			//solo se TUTTI i file richiesti erano già pubblicati
+			throw new IOException("Il file richiesto è già stato pubblicato"); 
 		}
+		
 		
 	}
 

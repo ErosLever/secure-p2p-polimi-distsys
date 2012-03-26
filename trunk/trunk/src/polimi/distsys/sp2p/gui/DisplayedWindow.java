@@ -257,17 +257,26 @@ public class DisplayedWindow extends JFrame {
 
 					try {
 						sn.publish(file.getAbsoluteFile());
-						console.append("ho aggiunto il file: " + file.getName() + newline);
+						if(file.isFile()) 
+							console.append("ho aggiunto il file: " + file.getName() + newline);
+						if(file.isDirectory())
+							console.append("ho aggiunto il contenuto della directory: " + file.getName() + newline);
 						refreshFileList();
 						
 						
 
 					} catch (IOException e) {
 						console.append(genericComError);
+						if(!e.getMessage().isEmpty())
+							console.append(e.getMessage() + newline);
 					} catch (GeneralSecurityException e) {
 						console.append(genericSecError);
+						if(!e.getMessage().isEmpty())
+							console.append(e.getMessage() + newline);
 					} catch (IllegalStateException e) {
 						console.append(notConnectstate);
+						if(!e.getMessage().isEmpty())
+							console.append(e.getMessage() + newline);
 					} catch (ClassNotFoundException e) {
 					
 					}
@@ -297,12 +306,18 @@ public class DisplayedWindow extends JFrame {
 						
 					} catch (IOException e) {
 						console.append(genericComError);
+						if(!e.getMessage().isEmpty())
+							console.append(e.getMessage() + newline);
 						
 					} catch (GeneralSecurityException e) {
 						console.append(genericSecError);
+						if(!e.getMessage().isEmpty())
+							console.append(e.getMessage() + newline);
 						
 					} catch (IllegalStateException e) {
 						console.append(notConnectstate);
+						if(!e.getMessage().isEmpty())
+							console.append(e.getMessage() + newline);
 						
 					} catch (ClassNotFoundException e) {
 						
