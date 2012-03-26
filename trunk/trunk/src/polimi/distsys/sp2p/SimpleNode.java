@@ -17,7 +17,6 @@ import java.util.Set;
 
 import polimi.distsys.sp2p.containers.LocalSharedFile;
 import polimi.distsys.sp2p.containers.NodeInfo;
-import polimi.distsys.sp2p.containers.RemoteSharedFile;
 import polimi.distsys.sp2p.containers.messages.Message.Request;
 import polimi.distsys.sp2p.containers.messages.Message.Response;
 import polimi.distsys.sp2p.crypto.EncryptedSocketFactory.EncryptedClientSocket;
@@ -47,7 +46,8 @@ public class SimpleNode extends Node {
 	// directory locale dove prendere e salvare i file
 	private File downloadDirectory; 
 	/** States whether the node is connected to a SuperNode */
-	private NodeInfo superNode;
+	private NodeInfo supernode;
+	private EncryptedClientSocket secureChannel;
 	
 	private InetAddress myAddress;
 	
@@ -82,7 +82,8 @@ public class SimpleNode extends Node {
 		fileList = new HashSet<LocalSharedFile>();
 
 		//il nodo non e connesso al network quando viene creato
-		superNode = null;
+		supernode = null;
+		secureChannel = null;
 
 	}
 
@@ -98,7 +99,7 @@ public class SimpleNode extends Node {
 	 */
 	public void join() throws GeneralSecurityException,IllegalStateException, IOException, ClassNotFoundException {
 
-		if(superNode == null) {
+		if(secureChannel == null) {
 			
 			//fa partire la lista dei supernodi da un punto casuale
 			Iterator<NodeInfo> superNodeList = RoutingHandler.getRandomOrderedList(
@@ -108,7 +109,6 @@ public class SimpleNode extends Node {
 			while(superNodeList.hasNext()) {
 
 				NodeInfo dest = superNodeList.next();
-				EncryptedClientSocket secureChannel = null;
 
 				try {
 
@@ -123,27 +123,33 @@ public class SimpleNode extends Node {
 					Response reply = secureChannel.getInputStream().readEnum( Response.class );
 
 					if( reply == Response.OK ){
-						superNode = dest;
+						supernode = dest;
 						byte[] ip = secureChannel.getInputStream().readFixedSizeAsByteArray(4);
 						secureChannel.getInputStream().checkDigest();
 						this.myAddress = Inet4Address.getByAddress( ip );
 						break;
 					}
 
-					secureChannel.getOutputStream().write( Request.CLOSE_CONN );
-					secureChannel.close();
-
 				} catch(IOException e) {
-					continue;
-				} finally {
 					if( secureChannel != null ){
 						secureChannel.close();
+						secureChannel = null;
 					}
+					continue;
 				}
 
 			} 
 		} else {
 			throw new IllegalStateException(); }
+	}
+	
+	public void checkConnectionWithSuperNode() throws IllegalStateException, GeneralSecurityException, IOException, ClassNotFoundException{
+		if( supernode == null)
+			throw new IllegalStateException("Not connected");
+		if( ! secureChannel.isConnected() ){
+			secureChannel = enSockFact.getEncryptedClientSocket( 
+					supernode.getAddress(), supernode.getPublicKey() );
+		}
 	}
 	
 	//LEAVE
@@ -155,33 +161,32 @@ public class SimpleNode extends Node {
 	 * @throws IOException 
 	 */
 	public void leave() throws IOException, GeneralSecurityException {
-		if(superNode != null ) {
+		
+		try {
+			
+			checkConnectionWithSuperNode();
 
-			EncryptedClientSocket secureChannel = null;
+			secureChannel.getOutputStream().write( Request.LEAVE );
 
-			try {
+			Response reply = secureChannel.getInputStream().readEnum( Response.class );
 
-				secureChannel = enSockFact.getEncryptedClientSocket(
-						superNode.getAddress(), superNode.getPublicKey());
+			if( reply == Response.OK ){
+				supernode = null;
 
-				secureChannel.getOutputStream().write( Request.CLOSE_CONN );
-
-				Response reply = secureChannel.getInputStream().readEnum( Response.class );
-
-				if( reply == Response.OK ){
-					superNode = null;
-
-				}		
-			} 
-			finally {
-				if( secureChannel != null ){
-					secureChannel.close();
-				}
+			}else{
+				throw new IOException("Something went wrong while leaving");
 			}
-
-		} else {
-			throw new IllegalStateException(); 
+		} catch (IllegalStateException e) {
+			throw e;
+		} catch (ClassNotFoundException e) {
+			throw new IOException("Something went wrong while leaving");
+		} 
+		finally {
+			if( secureChannel != null ){
+				secureChannel.close();
+			}
 		}
+
 	}
 
 	// PUBLISH 
@@ -191,41 +196,32 @@ public class SimpleNode extends Node {
 	 * ed invia la lista al supernodo a cui si e collegati
 	 * @throws IOException 
 	 * @throws GeneralSecurityException 
+	 * @throws ClassNotFoundException 
+	 * @throws IllegalStateException 
 	 */
-	public void publish( Set<LocalSharedFile> fileList ) throws IOException, GeneralSecurityException {
+	public void publish( Set<LocalSharedFile> fileList ) throws IOException, GeneralSecurityException, IllegalStateException, ClassNotFoundException {
 
-		if( superNode != null) {
+		checkConnectionWithSuperNode();
+		
+		secureChannel.getOutputStream().write( Request.PUBLISH );
+		
+		secureChannel.getOutputStream().writeVariableSize( fileList );
+		secureChannel.getOutputStream().sendDigest();
+		secureChannel.getOutputStream().flush();
 
-			EncryptedClientSocket secureChannel = enSockFact.getEncryptedClientSocket(
-					superNode.getAddress(), superNode.getPublicKey());
-			secureChannel.getOutputStream().write( Request.PUBLISH );
+		
+		Response reply = secureChannel.getInputStream().readEnum( Response.class );
+		if( reply == Response.OK ){
+			this.fileList.addAll( fileList );
+		}else{
 			
-			Set<RemoteSharedFile> toSend = new HashSet<RemoteSharedFile>();
-			for( LocalSharedFile lsf : fileList )
-				//TODO evitare la presenza di duplicati
-				toSend.add( new RemoteSharedFile( lsf, getNodeInfo() ) );
-			secureChannel.getOutputStream().writeVariableSize( toSend );
-			secureChannel.getOutputStream().sendDigest();
-			secureChannel.getOutputStream().flush();
-
+			//TODO NON DOVREMMO DISCONNETTERE IL NODO IN QUESTO CASO
 			
-			Response reply = secureChannel.getInputStream().readEnum( Response.class );
-			if( reply == Response.OK ){
-				this.fileList.addAll( fileList );
-			}else{
-				
-				//TODO NON DOVREMMO DISCONNETTERE IL NODO IN QUESTO CASO
-				
-				/* ci sarebbe da fare una catch della io exception e disconnettere nel caso il nodo dalla rete
-				 * 
-				 */
-				throw new IOException( "Something went wrong while publishin'" );
-			}
-			
-			secureChannel.close();
-		} else { 
-			throw new IllegalStateException("Bisogna essere connessi alla rete");
+			/* ci sarebbe da fare una catch della io exception e disconnettere nel caso il nodo dalla rete
+			 */
+			throw new IOException( "Something went wrong while publishin'" );
 		}
+		
 	}
 
 	/**
@@ -235,12 +231,14 @@ public class SimpleNode extends Node {
 	 * @param filePath
 	 * @throws IOException 
 	 * @throws GeneralSecurityException 
+	 * @throws ClassNotFoundException 
+	 * @throws IllegalStateException 
 	 */
-	public void publish( String filePath ) throws IOException, GeneralSecurityException {
+	public void publish( String filePath ) throws IOException, GeneralSecurityException, IllegalStateException, ClassNotFoundException {
 		publish( retrieveFileList( filePath ) );
 	}
 
-	public void publish( File filePath ) throws IOException, GeneralSecurityException {
+	public void publish( File filePath ) throws IOException, GeneralSecurityException, IllegalStateException, ClassNotFoundException {
 		publish( retrieveFileList( filePath ) );
 	}
 
@@ -250,41 +248,27 @@ public class SimpleNode extends Node {
 	 * @param sh
 	 * @throws IOException 
 	 * @throws GeneralSecurityException 
+	 * @throws ClassNotFoundException 
+	 * @throws IllegalStateException 
 	 */
 	public void unpublish( Set<LocalSharedFile> list ) 
-			throws IOException, GeneralSecurityException {
+			throws IOException, GeneralSecurityException, IllegalStateException, ClassNotFoundException {
 
-		if( superNode != null ){
+		checkConnectionWithSuperNode();
 
-			Set<RemoteSharedFile> toSend = new HashSet<RemoteSharedFile>();
-			
-			for( LocalSharedFile lsf : list )
-				if( fileList.contains( lsf ) )
-					toSend.add( new RemoteSharedFile( lsf, this.getNodeInfo() ) );
-					
-			EncryptedClientSocket secureChannel = enSockFact.getEncryptedClientSocket(
-					superNode.getAddress(), superNode.getPublicKey());
-			
-			secureChannel.getOutputStream().write( Request.UNPUBLISH );
-			secureChannel.getOutputStream().write( toSend );
-			secureChannel.getOutputStream().sendDigest();
-			secureChannel.getOutputStream().flush();
+		secureChannel.getOutputStream().write( Request.UNPUBLISH );
+		secureChannel.getOutputStream().write( list );
+		secureChannel.getOutputStream().sendDigest();
+		secureChannel.getOutputStream().flush();
 
-			Response reply = secureChannel.getInputStream().readEnum( Response.class );
-			
-			if( reply == Response.OK ) {
-
-				fileList.removeAll( list );
-
-			} else {
-				throw new IOException( "Something went wrong while un-publishin'" );
-			}
-
-			secureChannel.close();
+		Response reply = secureChannel.getInputStream().readEnum( Response.class );
 		
+		if( reply == Response.OK ) {
+
+			fileList.removeAll( list );
 
 		} else {
-			throw new IllegalStateException("Bisogna essere connessi alla rete");
+			throw new IOException( "Something went wrong while un-publishin'" );
 		}
 
 	}
@@ -329,7 +313,7 @@ public class SimpleNode extends Node {
 
 	// GETTER & SETTER
 	public boolean isConnected() {
-		return superNode != null;
+		return supernode != null;
 	}
 
 
@@ -355,7 +339,7 @@ public class SimpleNode extends Node {
 	}
 
 	public NodeInfo getSuperNode() {
-		return superNode;
+		return supernode;
 	}
 
 

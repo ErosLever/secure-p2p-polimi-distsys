@@ -17,7 +17,6 @@ import java.util.Set;
 
 import polimi.distsys.sp2p.containers.NodeInfo;
 import polimi.distsys.sp2p.containers.RemoteSharedFile;
-import polimi.distsys.sp2p.containers.SharedFile;
 import polimi.distsys.sp2p.containers.messages.Message.Request;
 import polimi.distsys.sp2p.containers.messages.Message.Response;
 import polimi.distsys.sp2p.crypto.EncryptedSocketFactory.EncryptedServerSocket;
@@ -96,85 +95,81 @@ public class SuperNode extends Node implements ListenerCallback {
 
 	//ALTRIMETODI
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public void handleRequest(SocketChannel client) {
 
 		try {
-
 			EncryptedServerSocket enSocket = enSockFact.getEncryptedServerSocket(client.socket(), credentials);
+			
+			while(true){
 
-			Request req = enSocket.getInputStream().readEnum( Request.class );
-
-			switch(req) {
-				case LOGIN:
-					int port = enSocket.getInputStream().readInt();
-					enSocket.getInputStream().checkDigest();
-					
-					InetSocketAddress isa = new InetSocketAddress( 
-							enSocket.getRemoteAddress(), port);
-					
-					NodeInfo clientNode = new NodeInfo( 
-							enSocket.getClientPublicKey(), isa, false );
-					if( connectedClients.contains( clientNode ) ){
-						enSocket.getOutputStream().write( Response.ALREADY_CONNECTED );
-					}else{
-						connectedClients.add( clientNode );
-						enSocket.getOutputStream().write( Response.OK );
-						enSocket.getOutputStream().write( enSocket.getRemoteAddress().getAddress() );
-						enSocket.getOutputStream().sendDigest();
-					}
-					enSocket.getOutputStream().flush();
-					enSocket.close();
+				Request req = enSocket.getInputStream().readEnum( Request.class );
+				int port = enSocket.getInputStream().readInt();
+				InetSocketAddress isa = new InetSocketAddress( enSocket.getRemoteAddress(), port);
+				NodeInfo clientNode = new NodeInfo( enSocket.getClientPublicKey(), isa, false );
 	
-					break;
-	
-				case PUBLISH:
-					
-					try {
-						Set<RemoteSharedFile> list = enSocket.getInputStream()
-								.readObject( Set.class );
+				switch(req) {
+				
+					case LOGIN:
 						enSocket.getInputStream().checkDigest();
 						
-						for( RemoteSharedFile rsf : list ){
-							String id = Serializer.byteArrayToHexString( rsf.getHash() );
-							if( ! files.containsKey( id ) ){
-								files.put( id, new HashSet<RemoteSharedFile>() );
-							}
-							if( ! files.get( id ).contains( rsf ) ){
-								files.get( id ).add( rsf );
-							}
+						if( connectedClients.contains( clientNode ) ){
+							enSocket.getOutputStream().write( Response.ALREADY_CONNECTED );
+						}else{
+							connectedClients.add( clientNode );
+							enSocket.getOutputStream().write( Response.OK );
+							enSocket.getOutputStream().write( enSocket.getRemoteAddress().getAddress() );
+							enSocket.getOutputStream().sendDigest();
 						}
-						
-						enSocket.getOutputStream().write( Response.OK );
 						enSocket.getOutputStream().flush();
-						enSocket.close();
-					} catch (ClassNotFoundException e) {
-						e.printStackTrace();
-					}
-					
-				case CLOSE_CONN:
-
-					for( NodeInfo i: connectedClients) {
-
-						//TODO Da controllare
-						//controllo se il nodo richiedente è connesso
-						if(i.getAddress().equals(client.socket().getLocalSocketAddress())) {
-							connectedClients.remove(i);
-
+		
+						break;
+		
+					case PUBLISH:
+						
+						try {
+							Set<RemoteSharedFile> list = enSocket.getInputStream()
+									.readObject( Set.class );
+							enSocket.getInputStream().checkDigest();
+							
+							for( RemoteSharedFile rsf : list ){
+								String id = Serializer.byteArrayToHexString( rsf.getHash() );
+								if( ! files.containsKey( id ) ){
+									files.put( id, new HashSet<RemoteSharedFile>() );
+								}
+								if( ! files.get( id ).contains( rsf ) ){
+									files.get( id ).add( rsf );
+								}
+							}
+							
 							enSocket.getOutputStream().write( Response.OK );
 							enSocket.getOutputStream().flush();
-							enSocket.close();
-							return;
+						} catch (ClassNotFoundException e) {
+							e.printStackTrace();
 						}
-					}
-
-					enSocket.getOutputStream().write(Response.NOT_CONNECTED);
-					enSocket.getOutputStream().flush();
-					enSocket.close();
-
-
-				default:
-					enSocket.getOutputStream().write( Response.FAIL );
+						break;
+						
+					case LEAVE:
+						
+						if( connectedClients.contains( clientNode ) ){
+							connectedClients.remove( clientNode );
+							enSocket.getOutputStream().write( Response.OK );
+						}else{
+							enSocket.getOutputStream().write(Response.NOT_CONNECTED);
+						}
+						enSocket.getOutputStream().flush();
+						break;
+						
+					default:
+						
+						enSocket.getOutputStream().write( Response.FAIL );
+	
+					case CLOSE_CONN:
+						
+						enSocket.close();
+				}
+			
 			}
 		}catch(IOException e){
 			e.printStackTrace();
