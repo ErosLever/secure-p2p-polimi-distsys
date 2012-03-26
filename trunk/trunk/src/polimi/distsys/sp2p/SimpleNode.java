@@ -14,9 +14,11 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Scanner;
 import java.util.Set;
+import java.util.Vector;
 
 import polimi.distsys.sp2p.containers.LocalSharedFile;
 import polimi.distsys.sp2p.containers.NodeInfo;
+import polimi.distsys.sp2p.containers.RemoteSharedFile;
 import polimi.distsys.sp2p.containers.messages.Message.Request;
 import polimi.distsys.sp2p.containers.messages.Message.Response;
 import polimi.distsys.sp2p.crypto.EncryptedSocketFactory.EncryptedClientSocket;
@@ -326,7 +328,8 @@ public class SimpleNode extends Node {
 	}
 
 	//SEARCH
-	public void search(String query) throws IllegalStateException, GeneralSecurityException, IOException, ClassNotFoundException {
+	@SuppressWarnings("unchecked")
+	public Vector<RemoteSharedFile> search(String query) throws IllegalStateException, GeneralSecurityException, IOException, ClassNotFoundException {
 		
 		checkConnectionWithSuperNode();
 		
@@ -337,8 +340,15 @@ public class SimpleNode extends Node {
 
 		Response reply = secureChannel.getInputStream().readEnum( Response.class );
 
-		if( reply == Response.OK )  {}
-
+		if( reply == Response.OK )  {
+			
+			Vector<RemoteSharedFile> searchList = secureChannel.getInputStream().readObject(Vector.class);
+			secureChannel.getInputStream().checkDigest();
+			
+			return searchList;
+		}
+		
+		return null;
 	
 	}
 	
