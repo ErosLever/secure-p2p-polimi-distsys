@@ -62,7 +62,7 @@ public class Message implements Serializable {
 	public interface Action {}
 
 	public enum Request implements Action {
-		LOGIN, PUBLISH, UNPUBLISH, SEARCH, FETCH, LEAVE, CLOSE_CONN, FORWARD_SEARCH
+		LOGIN, PUBLISH, UNPUBLISH, SEARCH, FETCH, LEAVE, CLOSE_CONN, FORWARD_SEARCH, LIST_AVAILABLE_CHUNKS, FETCH_CHUNK
 	}
 
 	public enum Response implements Action {

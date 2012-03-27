@@ -9,7 +9,6 @@ import java.nio.channels.SocketChannel;
 import java.security.GeneralSecurityException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -27,9 +26,9 @@ import polimi.distsys.sp2p.crypto.EncryptedSocketFactory.EncryptedClientSocket;
 import polimi.distsys.sp2p.crypto.EncryptedSocketFactory.EncryptedServerSocket;
 import polimi.distsys.sp2p.handlers.SearchHandler;
 import polimi.distsys.sp2p.util.Listener;
-import polimi.distsys.sp2p.util.Listener.ListenerCallback;
 import polimi.distsys.sp2p.util.PortChecker;
 import polimi.distsys.sp2p.util.Serializer;
+import polimi.distsys.sp2p.util.Listener.ListenerCallback;
 
 
 /**
@@ -150,7 +149,7 @@ loop:		while(true){
 								
 								if( ! files.contains( sf ) ){
 									RemoteSharedFile rsf = new RemoteSharedFile(
-											sf.getHash(), filename, clientNode );
+											sf.getHash(), filename, sf.getSize(), clientNode );
 									files.add( rsf );
 								}else{
 									files.get( files.indexOf( sf ) ).addPeer( filename, clientNode );
@@ -197,7 +196,6 @@ loop:		while(true){
 							enSocket.getInputStream().checkDigest();
 							
 							for( SharedFile sf : list ){
-								String filename = sf.getFileNames().iterator().next();
 								if( ! files.contains( sf ) ){
 									// weird :-/
 									continue;

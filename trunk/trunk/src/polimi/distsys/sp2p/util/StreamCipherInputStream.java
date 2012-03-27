@@ -53,7 +53,7 @@ public class StreamCipherInputStream extends FilterInputStream {
 		byte[] repr = readFixedSizeAsByteArray( Integer.SIZE / 8 );
 		int ret = 0;
 		for( int i=0; i<repr.length; i++)
-			ret += repr[i] << ( i * 8 ) ;
+			ret += ( repr[i] & 0xFF ) << ( i * 8 ) ;
 		return ret;
 	}
 

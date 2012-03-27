@@ -73,11 +73,14 @@ public class SearchHandler {
 	 */
 	private static boolean matchQuery( SharedFile sf, String query ){
 		
-		//più criptico nn lo potevi fare? xD
+		//tokens della query
 		List<String> tokens = Arrays.asList( query.split(" ") );
 		for( String name : sf.getFileNames() ){
+			//tokens del nome del file
 			List<String> pieces = Arrays.asList( name.split(" " ) );
+			// intersezione tra le due liste
 			pieces.retainAll( tokens );
+			// se l'intersezione non è vuota, abbiamo un match
 			if( pieces.size() > 0 ){
 				return true;
 			}

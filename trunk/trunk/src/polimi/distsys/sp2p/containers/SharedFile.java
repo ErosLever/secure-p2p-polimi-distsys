@@ -7,7 +7,6 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Vector;
 
 
 /**
@@ -20,20 +19,22 @@ public abstract class SharedFile implements Serializable {
 	
 	protected final Collection<String> filenames;
 	protected final byte[] hash;
+	protected final long size;
 	protected int numberOfPeers;
 	
-	public SharedFile( String name, byte[] hash) {
-		this( name, hash, 1 );
+	public SharedFile( String name, byte[] hash, long size) {
+		this( name, hash, size, 1 );
 	}
 	
-	public SharedFile( String name, byte[] hash, int numberOfPeers) {
-		this( Collections.singletonList( name ), hash, numberOfPeers);
+	public SharedFile( String name, byte[] hash, long size, int numberOfPeers) {
+		this( Collections.singletonList( name ), hash, size, numberOfPeers);
 	}
 	
-	public SharedFile( Collection<String> filenames, byte[] hash, int numberOfPeers) {
+	public SharedFile( Collection<String> filenames, byte[] hash, long size, int numberOfPeers) {
 		this.filenames = filenames;
 		this.hash = hash;
 		this.numberOfPeers = numberOfPeers;
+		this.size = size;
 	}
 	
 	public Collection<String> getFileNames() {
@@ -50,6 +51,10 @@ public abstract class SharedFile implements Serializable {
 	
 	public boolean hasPeers(){
 		return numberOfPeers > 0;
+	}
+	
+	public long getSize(){
+		return size;
 	}
 	
 	@Override

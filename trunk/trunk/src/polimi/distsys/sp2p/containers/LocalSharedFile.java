@@ -16,7 +16,7 @@ public class LocalSharedFile extends SharedFile {
 	}
 
 	public LocalSharedFile( File file ) throws NoSuchAlgorithmException, IOException {
-		super( file.getName(), SecurityHandler.createHash( file ) );
+		super( file.getName(), SecurityHandler.createHash( file ), file.length() );
 		this.file = file;
 	}
 
