@@ -52,10 +52,16 @@ public class DownloadHandler extends Thread {
 		
 		BitArray receivedChunks;
 		if( tmp.exists() ){
-			receivedChunks = BitArray.deserialize( new FileInputStream( tmp ) );
+			FileInputStream fis = new FileInputStream( tmp );
+			fis.skip( file.getHash().length );
+			receivedChunks = BitArray.deserialize( fis );
+			fis.close();
 		}else{
 			receivedChunks = new BitArray( (int) Math.ceil( 1.0 * file.getSize() / CHUNK_SIZE ) );
-			receivedChunks.serialize( new FileOutputStream( tmp ) );
+			FileOutputStream fos = new FileOutputStream( tmp );
+			fos.write( file.getHash() );
+			receivedChunks.serialize( fos );
+			fos.close();
 		}
 		this.receivedChunks = receivedChunks;
 	}
@@ -72,6 +78,7 @@ public class DownloadHandler extends Thread {
 				e.printStackTrace();
 			}
 		callback.endOfDownload( receivedChunks );
+		
 	}
 	
 	public void setActive(boolean active){

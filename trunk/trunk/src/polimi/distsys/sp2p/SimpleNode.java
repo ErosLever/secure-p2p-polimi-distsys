@@ -50,6 +50,7 @@ public class SimpleNode extends Node {
 
 	// lista dei file da condividere in locale
 	private Set<LocalSharedFile> fileList;
+	private Set<RemoteSharedFile> incompleteList;
 	// directory locale dove prendere e salvare i file
 	private File downloadDirectory; 
 	/** States whether the node is connected to a SuperNode */
@@ -360,6 +361,28 @@ public class SimpleNode extends Node {
 	
 	}
 	
+	public RemoteSharedFile searchByHash(byte[] hash) throws IllegalStateException, GeneralSecurityException, IOException, ClassNotFoundException {
+		
+		checkConnectionWithSuperNode();
+		
+		secureChannel.getOutputStream().write( Request.SEARCH_BY_HASH );
+		secureChannel.getOutputStream().write( hash );
+		secureChannel.getOutputStream().sendDigest();
+		secureChannel.getOutputStream().flush();
+
+		Response reply = secureChannel.getInputStream().readEnum( Response.class );
+
+		if( reply == Response.OK )  {
+			
+			RemoteSharedFile toReturn = secureChannel.getInputStream().readObject( RemoteSharedFile.class );
+			secureChannel.getInputStream().checkDigest();
+			
+			return toReturn;
+		}else
+			throw new IOException( "Server response: got "+reply.name()+" instead of OK");
+	
+	}
+		
 	public void startDownload( final RemoteSharedFile file, String filename, final DownloadCallback callback ) throws IOException{
 		File dest = new File( downloadDirectory, filename );
 		DownloadHandler dh = new DownloadHandler( enSockFact, file, dest,
@@ -408,6 +431,22 @@ public class SimpleNode extends Node {
 		}
 	}
 	
+	public void resumeDownload( File file, DownloadCallback callback ) throws IOException, IllegalStateException, GeneralSecurityException, ClassNotFoundException{
+		byte[] hash = new byte[20];
+		//TODO check if file is "legitimate"
+		FileInputStream fis = new FileInputStream( file.getPath() + ".tmp" );
+		int count = 0;
+		while(count < hash.length)
+			count += fis.read(hash, count, hash.length - count);
+		RemoteSharedFile sharedFile = searchByHash( hash );
+		startDownload( sharedFile, file.getPath() , callback);
+	}
+	
+	public void resumeAllDownloads( Map<File,DownloadCallback> files ) throws IOException, IllegalStateException, GeneralSecurityException, ClassNotFoundException{
+		for( File file : files.keySet() ){
+			resumeDownload( file, files.get( file ) );
+		}
+	}
 	
 	public void closeConnection() throws IllegalStateException, GeneralSecurityException, IOException, ClassNotFoundException {
 		
@@ -429,6 +468,10 @@ public class SimpleNode extends Node {
 
 	public Set<LocalSharedFile> getFileList() {
 		return fileList;
+	}
+	
+	public Set<RemoteSharedFile> getIncompleteFiles() {
+		return downHandlers.keySet();
 	}
 	
 	public void setDownloadDirectory( File file ){
