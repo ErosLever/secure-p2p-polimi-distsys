@@ -99,7 +99,7 @@ public class StreamCipherOutputStream extends FilterOutputStream {
 	public synchronized void write( int num ) throws IOException {
 		byte[] repr = new byte[ Integer.SIZE / 8 ];
 		for(int i=0; i<repr.length; i++)
-			repr[i] = (byte) ( ( num >> ( i * 8 ) ) & 0xFF );
+			repr[i] = (byte) ( ( num >>> ( i * 8 ) ) & 0xFF );
 		write( repr );
 	}
 	

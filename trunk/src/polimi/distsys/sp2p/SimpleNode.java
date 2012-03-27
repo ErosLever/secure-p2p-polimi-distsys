@@ -10,8 +10,10 @@ import java.security.GeneralSecurityException;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Scanner;
 import java.util.Set;
 import java.util.Vector;
@@ -22,7 +24,10 @@ import polimi.distsys.sp2p.containers.RemoteSharedFile;
 import polimi.distsys.sp2p.containers.messages.Message.Request;
 import polimi.distsys.sp2p.containers.messages.Message.Response;
 import polimi.distsys.sp2p.crypto.EncryptedSocketFactory.EncryptedClientSocket;
+import polimi.distsys.sp2p.handlers.DownloadHandler;
 import polimi.distsys.sp2p.handlers.RoutingHandler;
+import polimi.distsys.sp2p.handlers.DownloadHandler.DownloadCallback;
+import polimi.distsys.sp2p.util.BitArray;
 import polimi.distsys.sp2p.util.PortChecker;
 import polimi.distsys.sp2p.util.Serializer;
 
@@ -52,6 +57,8 @@ public class SimpleNode extends Node {
 	private EncryptedClientSocket secureChannel;
 	
 	private InetAddress myAddress;
+	
+	private final Map<RemoteSharedFile, DownloadHandler> downHandlers;
 	
 	// COSTRUTTORI
 	public static SimpleNode fromFile() 
@@ -86,6 +93,8 @@ public class SimpleNode extends Node {
 		//il nodo non e connesso al network quando viene creato
 		supernode = null;
 		secureChannel = null;
+		
+		downHandlers = new HashMap<RemoteSharedFile, DownloadHandler>();
 
 	}
 
@@ -350,6 +359,54 @@ public class SimpleNode extends Node {
 		
 		return null;
 	
+	}
+	
+	public void startDownload( final RemoteSharedFile file, String filename, final DownloadCallback callback ) throws IOException{
+		File dest = new File( downloadDirectory, filename );
+		DownloadHandler dh = new DownloadHandler( enSockFact, file, dest,
+				new DownloadCallback(){
+
+					@Override
+					public void endOfDownload( BitArray writtenChunks ) {
+						downHandlers.remove( file );
+						callback.endOfDownload( writtenChunks );
+					}
+
+					@Override
+					public void receivedChunk( int i, byte[] value ) {
+						callback.receivedChunk( i, value );
+					}
+
+					@Override
+					public void gotException( Exception ex ) {
+						downHandlers.remove( file );
+						callback.gotException( ex );
+					}
+			
+		});
+		dh.start();
+		downHandlers.put(file, dh);
+	}
+	
+	public void stopAllDownloads() throws IOException, GeneralSecurityException{
+		while(downHandlers.size() > 0){
+			RemoteSharedFile file = downHandlers.keySet().iterator().next();
+			DownloadHandler dh = downHandlers.get( file );
+			dh.setActive( false );
+			try {
+				// wait 'till it finishes it work
+				dh.join();
+			} catch (InterruptedException e) {
+			}
+			Exception ex = dh.checkException(); 
+			if( ex != null ){
+				if( ex instanceof IOException )
+					throw new IOException( ex );
+				if( ex instanceof GeneralSecurityException )
+					throw new GeneralSecurityException( ex );
+			}
+			downHandlers.remove( file );
+		}
 	}
 	
 	
