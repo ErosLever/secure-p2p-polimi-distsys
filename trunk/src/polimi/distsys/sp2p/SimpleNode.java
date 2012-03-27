@@ -355,9 +355,8 @@ public class SimpleNode extends Node {
 			secureChannel.getInputStream().checkDigest();
 			
 			return searchList;
-		}
-		
-		return null;
+		}else
+			throw new IOException( "Server response: got "+reply.name()+" instead of OK");
 	
 	}
 	
