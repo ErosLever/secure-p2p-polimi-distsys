@@ -17,7 +17,6 @@ public class SecurityHandler {
 	private static final int ASYMM_KEY_SIZE = 1024/8;
 	private static final String ASYMM_ALGO = "RSA";
 	
-	
 	//KEY GENERATION
 	
 	/**

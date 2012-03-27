@@ -42,6 +42,18 @@ public class SearchHandler {
 
 	}
 	
+	public static RemoteSharedFile localSearchByHash( byte[] hash, List<RemoteSharedFile> list ) {
+
+		for( RemoteSharedFile f : list ){
+			if( Arrays.equals( f.getHash(), hash ) ){
+				return f;
+			}
+		}
+		
+		return null;
+
+	}
+	
 	/**
 	 * Unisce due liste di file condivisi controllando eventuali duplicati
 	 * 

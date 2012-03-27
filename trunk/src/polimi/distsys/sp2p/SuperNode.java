@@ -254,6 +254,48 @@ loop:		while(true){
 						enSocket.getOutputStream().flush();
 						break;
 					
+					case SEARCH_BY_HASH:
+						
+						byte[] hash = enSocket.getInputStream().readFixedSizeAsByteArray( 20 );
+						enSocket.getInputStream().checkDigest();
+						
+						RemoteSharedFile fileToSend = SearchHandler.localSearchByHash( hash, files );
+						
+						// forward query to other supernodes
+						for( NodeInfo supernode : rh.getSupernodeList() ){
+							// avoid myself ;)
+							if( supernode.equals( this ) )
+								continue;
+							
+							//connect to the other supernode
+							EncryptedClientSocket ecs = enSockFact.getEncryptedClientSocket( 
+									supernode.getAddress(), supernode.getPublicKey() );
+							
+							//forward
+							ecs.getOutputStream().write( Request.FORWARD_SEARCH_BY_HASH );
+							ecs.getOutputStream().write( hash );
+							ecs.getOutputStream().sendDigest();
+							
+							//read response
+							Response reply = ecs.getInputStream().readEnum( Response.class );
+							if( reply.equals( Response.OK ) ){
+								RemoteSharedFile result = ecs.getInputStream().readObject( RemoteSharedFile.class );
+								ecs.getInputStream().checkDigest();
+								if( fileToSend == null )
+									fileToSend = result;
+								else if( result != null ){
+									fileToSend.merge( result );
+								}
+							}
+						}
+						
+						//send back to the client
+						enSocket.getOutputStream().write( Response.OK );
+						enSocket.getOutputStream().writeVariableSize( fileToSend );
+						enSocket.getOutputStream().sendDigest();
+						enSocket.getOutputStream().flush();
+						break;
+					
 					case FORWARD_SEARCH:
 						
 						//read query
@@ -266,6 +308,22 @@ loop:		while(true){
 						//reply
 						enSocket.getOutputStream().write( Response.OK );
 						enSocket.getOutputStream().writeVariableSize( replyList );
+						enSocket.getOutputStream().sendDigest();
+						enSocket.getOutputStream().flush();
+						break;
+						
+					case FORWARD_SEARCH_BY_HASH:
+						
+						//read query
+						hash = enSocket.getInputStream().readFixedSizeAsByteArray( 20 );
+						enSocket.getInputStream().checkDigest();
+						
+						//search in local files
+						RemoteSharedFile fileReply = SearchHandler.localSearchByHash( hash, files );
+						
+						//reply
+						enSocket.getOutputStream().write( Response.OK );
+						enSocket.getOutputStream().writeVariableSize( fileReply );
 						enSocket.getOutputStream().sendDigest();
 						enSocket.getOutputStream().flush();
 						break;
