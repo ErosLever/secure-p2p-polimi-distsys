@@ -13,6 +13,7 @@ import java.security.GeneralSecurityException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.Vector;
 
 import javax.swing.DefaultListModel;
 import javax.swing.JButton;
@@ -27,14 +28,17 @@ import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
 import javax.swing.JTabbedPane;
+import javax.swing.JTable;
 import javax.swing.JTextArea;
+import javax.swing.JTextField;
 import javax.swing.SwingConstants;
 import javax.swing.UIManager;
 import javax.swing.border.EmptyBorder;
+import javax.swing.table.DefaultTableModel;
 
 import polimi.distsys.sp2p.SimpleNode;
 import polimi.distsys.sp2p.containers.LocalSharedFile;
-import polimi.distsys.sp2p.containers.SharedFile;
+import polimi.distsys.sp2p.containers.RemoteSharedFile;
 
 public class DisplayedWindow extends JFrame {
 
@@ -49,7 +53,20 @@ public class DisplayedWindow extends JFrame {
 
 	//TAB
 	private JTabbedPane tabbedPane;
+	
+	//TAB RICERCA
 	private JPanel tabRicerca;
+	private JTextField searchQuery;
+	private JButton searchButton;
+	private JPanel groupSearch;
+	private JScrollPane searchScrollPane;
+	
+	//SEARCH TABLE
+	private DefaultTableModel searchModel;
+	private HashMap<Integer, RemoteSharedFile> searchedFiles;
+	private JTable searchTable;
+	
+	//TAB DOWNLOAD
 	private JPanel tabDownload;
 
 	//TAB PUBLISH
@@ -58,10 +75,11 @@ public class DisplayedWindow extends JFrame {
 	private JButton unpublishButton;
 	private JScrollPane fileScrollPane;
 	
+	
 	//PUBLISH LIST
-	private DefaultListModel model;
-	private JList fileVisualizationList;
-	private HashMap<String, LocalSharedFile> visualizedFiles;
+	private DefaultTableModel fileModel;
+	private JTable fileVisualizationTable;
+	private HashMap<Integer, LocalSharedFile> visualizedFiles;
 
 	//MENU
 	private JMenuBar menuBar;
@@ -103,11 +121,10 @@ public class DisplayedWindow extends JFrame {
 		contentPane.setBorder(new EmptyBorder(5, 5, 5, 5));
 		setContentPane(contentPane);
 		contentPane.setLayout(new BorderLayout(0, 0));
-
-		model = new DefaultListModel();
-
-
-
+		
+		//modelli
+		fileModel = new DefaultTableModel();
+		searchModel = new DefaultTableModel();
 
 
 		// MENU
@@ -230,14 +247,73 @@ public class DisplayedWindow extends JFrame {
 
 		tabbedPane = new JTabbedPane(JTabbedPane.TOP);
 		innerContainer.add(tabbedPane, BorderLayout.NORTH);
-
+		
+		//TAB SEARCH
 		tabRicerca = new JPanel();
 		tabbedPane.addTab("Search", null, tabRicerca, null);
+		tabRicerca.setLayout(new BorderLayout(0, 0));
+		
+		searchQuery = new JTextField();
+		searchQuery.setColumns(25);
+		searchButton = new JButton("Cerca");
+		searchButton.addMouseListener(new MouseAdapter() {
+			@Override
+			public void mouseClicked(MouseEvent arg0) {
+				
+				String query = searchQuery.getText();
+				
+				if(!query.isEmpty()) {
+					
+					console.append("Inizio la ricerca per la query:" + query + newline);
+					
+					try {
+						
+						Vector<RemoteSharedFile> tmp = sn.search(query);
+						refreshSearch(tmp);
+						
+						
+					} catch (IOException e) {
+						console.append(genericComError);
+						if(!e.getMessage().isEmpty())
+							console.append(e.getMessage() + newline);
+					} catch (GeneralSecurityException e) {
+						console.append(genericSecError);
+						if(!e.getMessage().isEmpty())
+							console.append(e.getMessage() + newline);
+					} catch (IllegalStateException e) {
+						console.append(notConnectstate);
+						if(!e.getMessage().isEmpty())
+							console.append(e.getMessage() + newline);
+					} catch (ClassNotFoundException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+				}
+				
+			}
+		});
+		groupSearch = new JPanel();
+		groupSearch.add(searchButton);
+		groupSearch.add(searchQuery);
+		
+		searchTable = new JTable(searchModel);
+		searchScrollPane = new JScrollPane(searchTable);
+		
+		searchModel.addColumn("Nome");
+		searchModel.addColumn("Peers");
+		searchModel.addColumn("Hash");
+		
+		searchTable.setRowSelectionAllowed(true);
+		searchTable.setColumnSelectionAllowed(false);
+		searchTable.setCellSelectionEnabled(false);
+		
+		tabRicerca.add(groupSearch, BorderLayout.NORTH);
+		tabRicerca.add(searchScrollPane, BorderLayout.SOUTH);
 
+		//TAB DOWNLOAD
 		tabDownload = new JPanel();
 		tabbedPane.addTab("Downloads", null, tabDownload, null);
-
-
+		
 		// TAB PUBLISH
 		tabListaFile = new JPanel();
 		tabbedPane.addTab("File", null, tabListaFile, null);
@@ -291,8 +367,8 @@ public class DisplayedWindow extends JFrame {
 			@Override
 			public void mouseClicked(MouseEvent arg0) {
 				//recupera l'oggetto selezionato
-				Object selected = fileVisualizationList.getSelectedValue();
-				if (selected != null) {
+				int selected = fileVisualizationTable.getSelectedRow();
+				if (selected != -1) {
 					
 					//recupero l'oggetto dal nome
 					LocalSharedFile tmp = visualizedFiles.get(selected);
@@ -301,7 +377,7 @@ public class DisplayedWindow extends JFrame {
 					
 					try {
 						sn.unpublish(tmpSet);
-						console.append("ho rimosso il file: " + selected + newline);
+						console.append("ho rimosso il file: " + tmp.getFile().getName() + newline);
 						refreshFileList();
 						
 					} catch (IOException e) {
@@ -332,13 +408,21 @@ public class DisplayedWindow extends JFrame {
 		JPanel groupButton = new JPanel();
 		groupButton.add(publishButton);
 		groupButton.add(unpublishButton);
-		fileVisualizationList = new JList(model);
-		fileScrollPane = new JScrollPane(fileVisualizationList);
+		fileVisualizationTable = new JTable(fileModel);
+		
+		fileVisualizationTable.setRowSelectionAllowed(true);
+		fileVisualizationTable.setColumnSelectionAllowed(false);
+		fileVisualizationTable.setCellSelectionEnabled(false);
+		
+		fileModel.addColumn("Nome");
+		fileModel.addColumn("Path");
+		fileScrollPane = new JScrollPane(fileVisualizationTable);
 
 
 		tabListaFile.add(fileScrollPane, BorderLayout.CENTER);
 		tabListaFile.add(groupButton, BorderLayout.NORTH);
 
+		
 		//STATUS BAR
 		statusLabel = new JLabel("STATUS: DISCONNESSO" + newline);
 		innerContainer.add(statusLabel, BorderLayout.SOUTH);
@@ -349,15 +433,43 @@ public class DisplayedWindow extends JFrame {
 
 	private void refreshFileList() {
 		
-		visualizedFiles = new HashMap<String, LocalSharedFile>();
-		model.removeAllElements();
+		visualizedFiles = new HashMap<Integer, LocalSharedFile>();
 		
+		//cancella la tabella
+		while (fileModel.getRowCount()>0){
+			fileModel.removeRow(0);
+			}
+		
+		int counter = 0;
 		for(LocalSharedFile sf: sn.getFileList()) {
-			visualizedFiles.put(sf.getFile().getName(), sf);
-			model.addElement(sf.getFile().getName());
+			visualizedFiles.put(counter, sf);
+			fileModel.addRow(new Object[]{sf.getFile().getName(),sf.getFile().getPath()});
+			counter++;
 		}
 		
-		
-
 	}
+	
+	private void refreshSearch(Vector<RemoteSharedFile> list) {
+		
+		searchedFiles = new HashMap<Integer, RemoteSharedFile>();
+		
+		while (searchModel.getRowCount()>0){
+			searchModel.removeRow(0);
+			}
+		
+		
+		int counter = 0;
+		for(RemoteSharedFile rsf: list) {
+			for(String name: rsf.getFileNames()) {
+				searchedFiles.put(counter, rsf);
+				searchModel.addRow(new Object[] { 
+						name, rsf.getPeers(), rsf.getHash().toString()});
+						
+			}
+			
+		}	
+			
+		}
+
+	
 }
