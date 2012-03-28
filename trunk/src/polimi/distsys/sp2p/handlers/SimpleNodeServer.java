@@ -1,5 +1,6 @@
 package polimi.distsys.sp2p.handlers;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.Socket;
 import java.nio.channels.SocketChannel;
@@ -7,9 +8,11 @@ import java.security.GeneralSecurityException;
 import java.security.PublicKey;
 
 import polimi.distsys.sp2p.SimpleNode;
-import polimi.distsys.sp2p.containers.LocalSharedFile;
-import polimi.distsys.sp2p.containers.RemoteSharedFile;
+import polimi.distsys.sp2p.containers.IncompleteSharedFile;
+import polimi.distsys.sp2p.containers.NodeInfo;
+import polimi.distsys.sp2p.containers.SharedFile;
 import polimi.distsys.sp2p.containers.messages.Message.Request;
+import polimi.distsys.sp2p.containers.messages.Message.Response;
 import polimi.distsys.sp2p.crypto.EncryptedSocketFactory.EncryptedServerSocket;
 import polimi.distsys.sp2p.util.Listener.ListenerCallback;
 
@@ -21,9 +24,9 @@ public abstract class SimpleNodeServer implements ListenerCallback {
 		this.node = node;
 	}
 	
-	public abstract void addTrustedKey( PublicKey key );
+	public abstract void addTrustedNode( NodeInfo node );
 	
-	public abstract boolean isTrustedKey( PublicKey key );
+	public abstract NodeInfo getCorrespondingNode( PublicKey key );
 	
 	public abstract EncryptedServerSocket getEncryptedServerSocket( Socket sock ) throws IOException, GeneralSecurityException;
 	
@@ -32,53 +35,73 @@ public abstract class SimpleNodeServer implements ListenerCallback {
 		
 		try {
 			EncryptedServerSocket sock = getEncryptedServerSocket( client.socket() );
+			NodeInfo clientNode = getCorrespondingNode( sock.getClientPublicKey() );
 			
-			while( true ){
+loop:		while( true ){
 				Request req = sock.getInputStream().readEnum( Request.class );
 				switch( req ){
 				
 				case LIST_AVAILABLE_CHUNKS:
-					
-					RemoteSharedFile file = sock.getInputStream().readObject( RemoteSharedFile.class );
+				{
+					SharedFile file = sock.getInputStream().readObject( SharedFile.class );
 					sock.getInputStream().checkDigest();
 					
-					RemoteSharedFile toSend = null;
-					for( LocalSharedFile sf : node.getFileList() ){
-						if( file.equals( sf ) ){
-							toSend = new RemoteSharedFile(
-									sf.getHash(), sf.getName(), sf.getSize(), node.getNodeInfo() );
-							break;
-						}
-					}
+					IncompleteSharedFile toSend = SearchHandler.searchLocal( 
+							file, node.getFileList(), node.getIncompleteFiles() );
 					
-					if( toSend == null ){
-						for( RemoteSharedFile sf : node.getIncompleteFiles() ){
-							if( file.equals( sf ) ){
-								toSend = sf;
-								break;
-							}
-						}
-					}
-					
-					//TODO get BitArray representing available chunks
-					//TODO send BitArray
+					sock.getOutputStream().write( Response.OK );
+					ByteArrayOutputStream serialized = new ByteArrayOutputStream();
+					toSend.getChunks().serialize( serialized );
+					serialized.close();
+					sock.getOutputStream().write( serialized.toByteArray() );
+					sock.getOutputStream().sendDigest();
 					
 					break;
-				
+				}
 				case FETCH_CHUNK:
+				{
+					SharedFile file = sock.getInputStream().readObject( SharedFile.class );
+					int index = sock.getInputStream().readInt();
+					sock.getInputStream().checkDigest();
+					
+					IncompleteSharedFile found = SearchHandler.searchLocal( 
+							file, node.getFileList(), node.getIncompleteFiles() );
+					
+					byte[] toSend = found.readChunk( index );
+					
+					sock.getOutputStream().write( Response.OK );
+					sock.getOutputStream().write( toSend );
+					sock.getOutputStream().sendDigest();
 					
 					break;
+				}
 				
+				case ADD_TRUSTED_NODE:
+				{
+					if( clientNode.isSuper() ){
+						
+						NodeInfo toAdd = sock.getInputStream().readObject( NodeInfo.class );
+						sock.getInputStream().checkDigest();
+						
+						addTrustedNode( toAdd );
+						
+					}else{
+						sock.getOutputStream().write( Response.FAIL );
+					}
+					break;
+				}
 				case CLOSE_CONN:
 					
-					break;
+					break loop;
 					
 				default:
 					
-					
+					sock.getOutputStream().write( Response.FAIL );
 					
 				}
+				sock.getOutputStream().flush();
 			}
+			sock.close();
 		} catch (GeneralSecurityException e) {
 			e.printStackTrace();
 		} catch (IOException e) {

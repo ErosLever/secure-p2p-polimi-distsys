@@ -1,18 +1,17 @@
 package polimi.distsys.sp2p.handlers;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.RandomAccessFile;
 import java.security.GeneralSecurityException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Vector;
 
+import polimi.distsys.sp2p.containers.IncompleteSharedFile;
 import polimi.distsys.sp2p.containers.NodeInfo;
 import polimi.distsys.sp2p.containers.RemoteSharedFile;
+import polimi.distsys.sp2p.containers.SharedFile;
 import polimi.distsys.sp2p.containers.messages.Message.Request;
 import polimi.distsys.sp2p.containers.messages.Message.Response;
 import polimi.distsys.sp2p.crypto.EncryptedSocketFactory;
@@ -26,11 +25,9 @@ public class DownloadHandler extends Thread {
 	
 	private final EncryptedSocketFactory enSockFact;
 	
-	private final RemoteSharedFile file;
-	private final RandomAccessFile dest;
+	private final RemoteSharedFile remoteFile;
+	private final IncompleteSharedFile incompleteFile;
 	
-	private final File tmp;
-	private final BitArray receivedChunks;
 	private final List<Integer> queue;
 	private final List<NodeQuerySender> threads;
 	
@@ -40,34 +37,16 @@ public class DownloadHandler extends Thread {
 	
 	public DownloadHandler( EncryptedSocketFactory enSockfact, RemoteSharedFile file, File dest, DownloadCallback callback ) throws FileNotFoundException, IOException{
 		this.enSockFact = enSockfact;
-		this.file = file;
-		this.dest = new RandomAccessFile( dest, "ab" );
-		if( this.dest.length() != file.getSize() )
-			this.dest.setLength( file.getSize() );
-		this.tmp = new File( dest.getPath() + ".tmp" );
+		this.remoteFile = file;
+		this.incompleteFile = new IncompleteSharedFile( file, dest );
 		this.exception = null;
 		this.queue = Collections.synchronizedList( new Vector<Integer>() );
 		threads = new Vector<NodeQuerySender>( file.getNumberOfPeers() );
 		this.callback = callback; 
-		
-		BitArray receivedChunks;
-		if( tmp.exists() ){
-			FileInputStream fis = new FileInputStream( tmp );
-			fis.skip( file.getHash().length );
-			receivedChunks = BitArray.deserialize( fis );
-			fis.close();
-		}else{
-			receivedChunks = new BitArray( (int) Math.ceil( 1.0 * file.getSize() / CHUNK_SIZE ) );
-			FileOutputStream fos = new FileOutputStream( tmp );
-			fos.write( file.getHash() );
-			receivedChunks.serialize( fos );
-			fos.close();
-		}
-		this.receivedChunks = receivedChunks;
 	}
 	
 	public void run(){
-		for( NodeInfo peer : file.getPeers() ){
+		for( NodeInfo peer : remoteFile.getPeers() ){
 			threads.add( new NodeQuerySender( peer, callback ) );
 			threads.get( threads.size() -1 ).start();
 		}
@@ -77,14 +56,17 @@ public class DownloadHandler extends Thread {
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
-		callback.endOfDownload( receivedChunks );
+		callback.endOfDownload( incompleteFile.getChunks() );
 		
 	}
 	
 	public void setActive(boolean active){
 		for( NodeQuerySender thread : threads )
 			thread.setActive( active );
-		
+	}
+	
+	public IncompleteSharedFile getIncompleteFile(){
+		return incompleteFile;
 	}
 	
 	public Exception checkException(){
@@ -106,13 +88,16 @@ public class DownloadHandler extends Thread {
 			try {
 				if( ! active )
 					return;
+				
+				callback.askCommunicationToNode( node, incompleteFile.toRemoteSharedFile( node ) );
+				
 				EncryptedClientSocket sock = enSockFact.getEncryptedClientSocket( 
 						node.getAddress(), node.getPublicKey() );
 				
 				BitArray availableChunks = refreshRemoteChunks( sock );
 				long lastUpdate = System.currentTimeMillis();
 				
-				for(int i=0;i<receivedChunks.length();i++){
+				for(int i=0;i<incompleteFile.getChunks().length();i++){
 					
 					if( ! active )
 						closeConn(sock);
@@ -123,7 +108,7 @@ public class DownloadHandler extends Thread {
 					}
 					
 					// mi serve
-					if( ! receivedChunks.get( i ) ){
+					if( ! incompleteFile.getChunks().get( i ) ){
 						// è disponibile
 						if( availableChunks.get( i ) ){
 							
@@ -161,7 +146,7 @@ public class DownloadHandler extends Thread {
 		
 		private BitArray refreshRemoteChunks(EncryptedClientSocket sock) throws IOException, GeneralSecurityException{
 			sock.getOutputStream().write( Request.LIST_AVAILABLE_CHUNKS );
-			sock.getOutputStream().writeVariableSize( DownloadHandler.this.file );
+			sock.getOutputStream().writeVariableSize( DownloadHandler.this.remoteFile );
 			sock.getOutputStream().sendDigest();
 			sock.getOutputStream().flush();
 			
@@ -173,13 +158,14 @@ public class DownloadHandler extends Thread {
 				throw new IOException("Something went wrong while preparing download from "+node );
 			BitArray availableChunks = BitArray.deserialize( 
 					sock.getInputStream().readFixedSize( 
-							DownloadHandler.this.receivedChunks.length() ) );
+							DownloadHandler.this.incompleteFile.getChunks().length() ) );
 			sock.getInputStream().checkDigest();
 			return availableChunks;
 		}
 		
 		public void downloadChunk( EncryptedClientSocket sock, final int i ) throws IOException, GeneralSecurityException{
 			sock.getOutputStream().write( Request.FETCH_CHUNK );
+			sock.getOutputStream().write( incompleteFile.toRemoteSharedFile( node ) );
 			sock.getOutputStream().write( i );
 			sock.getOutputStream().sendDigest();
 			
@@ -189,23 +175,8 @@ public class DownloadHandler extends Thread {
 				final byte[] chunk = sock.getInputStream().readFixedSizeAsByteArray( CHUNK_SIZE );
 				sock.getInputStream().checkDigest();
 				
-				synchronized( file ){
-					dest.seek( 1L * CHUNK_SIZE * i );
-					dest.write( chunk );
-				}
+				incompleteFile.writeChunk( i, chunk );
 				
-				synchronized( tmp ){
-					receivedChunks.set( i );
-					FileOutputStream out = new FileOutputStream( tmp );
-					receivedChunks.serialize( out );
-					out.close();
-					// callback
-					new Thread(){
-						public void run(){
-							callback.receivedChunk( i, chunk );
-						}
-					}.start();
-				}
 			}
 			
 			// serve il cast perchè altrimenti rimuove 
@@ -227,6 +198,8 @@ public class DownloadHandler extends Thread {
 		public void endOfDownload( BitArray writtenChunks );
 		
 		public void gotException( Exception ex );
+		
+		public void askCommunicationToNode( NodeInfo node, SharedFile sharedFile ) throws IOException, GeneralSecurityException;
 		
 	}
 

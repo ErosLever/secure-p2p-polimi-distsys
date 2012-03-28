@@ -6,7 +6,6 @@ import java.security.NoSuchAlgorithmException;
 
 import polimi.distsys.sp2p.handlers.SecurityHandler;
 
-
 public class LocalSharedFile extends SharedFile {
 	
 	private final transient File file;
@@ -19,13 +18,17 @@ public class LocalSharedFile extends SharedFile {
 		super( file.getName(), SecurityHandler.createHash( file ), file.length() );
 		this.file = file;
 	}
-
+	
 	public File getFile() {
 		return file;
 	}
 	
 	public String getName(){
-		return filenames.iterator().next();
+		return file.getName();
+	}
+	
+	public RemoteSharedFile toRemoteSharedFile( NodeInfo node ){
+		return new RemoteSharedFile( hash, file.getName(), size, node );
 	}
 
 }
