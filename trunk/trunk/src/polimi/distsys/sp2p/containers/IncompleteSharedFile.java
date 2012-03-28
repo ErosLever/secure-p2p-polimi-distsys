@@ -39,7 +39,7 @@ public class IncompleteSharedFile extends SharedFile {
 	private IncompleteSharedFile( File destination, byte[] hash, long size ) throws IOException {
 		super( destination.getName(), hash, size);
 		this.dest = destination;
-		this.randFile = new RandomAccessFile( dest, "ab" );
+		this.randFile = new RandomAccessFile( dest, "w" );
 		if( randFile.length() != size )
 			randFile.setLength( size );
 		this.chunks = getChunksFromFile();
@@ -50,7 +50,7 @@ public class IncompleteSharedFile extends SharedFile {
 	public IncompleteSharedFile( LocalSharedFile sharedFile ) throws IOException{
 		super( sharedFile.getName(), sharedFile.hash, sharedFile.size );
 		this.dest = sharedFile.getFile();
-		this.randFile = new RandomAccessFile( this.dest, "rb" );
+		this.randFile = new RandomAccessFile( this.dest, "r" );
 		this.chunks = new BitArray( (int) Math.ceil( 1.0 * size / CHUNK_SIZE ) );
 		for( int i=0;i<chunks.length();i++ )
 			chunks.set( i );
