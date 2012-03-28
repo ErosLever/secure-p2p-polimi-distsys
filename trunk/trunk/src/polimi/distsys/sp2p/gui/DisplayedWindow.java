@@ -37,7 +37,11 @@ import javax.swing.table.DefaultTableModel;
 import polimi.distsys.sp2p.SimpleNode;
 import polimi.distsys.sp2p.containers.IncompleteSharedFile;
 import polimi.distsys.sp2p.containers.LocalSharedFile;
+import polimi.distsys.sp2p.containers.NodeInfo;
 import polimi.distsys.sp2p.containers.RemoteSharedFile;
+import polimi.distsys.sp2p.containers.SharedFile;
+import polimi.distsys.sp2p.handlers.DownloadHandler.DownloadCallback;
+import polimi.distsys.sp2p.util.BitArray;
 
 public class DisplayedWindow extends JFrame {
 
@@ -358,6 +362,66 @@ public class DisplayedWindow extends JFrame {
 		groupSearch.add(searchQuery);
 		
 		searchTable = new JTable(searchModel);
+		
+		searchTable.addMouseListener(new MouseAdapter() {
+			public void mouseClicked(MouseEvent ev) {
+				if(ev.getClickCount() == 2)
+				{  int value = searchTable.getSelectedRow();
+					if( value != -1) {
+						
+						try {
+							
+							RemoteSharedFile rmt = sn.searchByHash(searchedFiles.get(value).getHash());
+							String name = sn.getDownloadDirectory().getAbsolutePath() + File.separator + searchModel.getValueAt(value, 0);
+							sn.startDownload(rmt,name,(new DownloadCallback() {
+								
+								@Override
+								public void receivedChunk(int i, byte[] value) {
+									console.append("ho ricevuto: " + String.valueOf(i));
+									
+								}
+								
+								@Override
+								public void gotException(Exception ex) {
+									console.append(ex.getMessage());
+									console.append("Ho fatto casino!");
+									
+								}
+								
+								@Override
+								public void endOfDownload(BitArray writtenChunks) {
+									console.append("ANDIAMO A VINCERE CAZZO!!!, download completato");
+									
+								}
+								
+								@Override
+								public void askCommunicationToNode(NodeInfo node, SharedFile sharedFile)
+										throws IOException, GeneralSecurityException {
+							
+									
+								}
+							}));
+							
+						} catch (IOException e) {
+							console.append(genericComError);
+							if(!e.getMessage().isEmpty())
+								console.append(e.getMessage() + newline);
+						} catch (GeneralSecurityException e) {
+							console.append(genericSecError);
+							if(!e.getMessage().isEmpty())
+								console.append(e.getMessage() + newline);
+						} catch (IllegalStateException e) {
+							console.append(notConnectstate);
+							if(!e.getMessage().isEmpty())
+								console.append(e.getMessage() + newline);
+						} catch (ClassNotFoundException e) {
+						
+						}
+					}
+				}
+			}
+			
+		});
 		searchScrollPane = new JScrollPane(searchTable);
 		
 		
