@@ -81,7 +81,7 @@ public class SearchHandler {
 	 * @param set
 	 * @return
 	 */
-	public static List<RemoteSharedFile> mergeLists(List<RemoteSharedFile> list, Set<RemoteSharedFile> set){ 
+	public static List<RemoteSharedFile> mergeLists(List<RemoteSharedFile> list, List<RemoteSharedFile> set){ 
 
 		//Aggiunge i file alla lista se non ci sono
 		for(RemoteSharedFile f : set) {
