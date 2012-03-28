@@ -252,6 +252,7 @@ public class StreamCipherOutputStream extends FilterOutputStream {
 		private final byte[] out_buffer;
 		private boolean available;
 		private int out_pos;
+		private int out_max;
 		
 		public RSAInputStream( InputStream in, ResettableCipher rc ) {
 			super(in);
@@ -274,7 +275,7 @@ public class StreamCipherOutputStream extends FilterOutputStream {
 			if( pos > 0 ){
 				Cipher c = cipher.reset();
 				c.update( buffer, 0, pos, out_buffer );
-				c.doFinal( out_buffer, 0 );
+				out_max = c.doFinal( out_buffer, 0 );
 				out_pos = 0;
 				available = true;
 			}
@@ -282,7 +283,7 @@ public class StreamCipherOutputStream extends FilterOutputStream {
 		
 		@Override
 		public int read() throws IOException {
-			if( !available || out_pos == cipher.getOutputBlockSize() ){
+			if( !available || out_pos == out_max ){
 				try {
 					readBlock();
 				} catch (GeneralSecurityException e) {
@@ -301,7 +302,7 @@ public class StreamCipherOutputStream extends FilterOutputStream {
 		
 		@Override
 		public int read( byte[] buf, int start, int len ) throws IOException {
-			if( !available || out_pos == cipher.getOutputBlockSize() ){
+			if( !available || out_pos == out_max ){
 				try {
 					readBlock();
 				} catch (GeneralSecurityException e) {
@@ -310,7 +311,7 @@ public class StreamCipherOutputStream extends FilterOutputStream {
 				if(!available)
 					return -1;
 			}
-			int toCopy = Math.min( cipher.getOutputBlockSize() - out_pos, len );
+			int toCopy = Math.min( out_max - out_pos, len );
 			System.arraycopy( out_buffer, out_pos, buf, start, toCopy);
 			out_pos += toCopy;
 			return toCopy;
