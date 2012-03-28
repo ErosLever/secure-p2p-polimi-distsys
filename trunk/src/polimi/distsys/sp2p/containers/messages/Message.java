@@ -74,7 +74,7 @@ public class Message implements Serializable {
 		FETCH_CHUNK, 
 		SEARCH_BY_HASH, 
 		FORWARD_SEARCH_BY_HASH, 
-		ADD_TRUSTED_NODE, 
+		ADD_TRUSTED_DOWNLOAD, 
 		OPEN_COMMUNICATION
 	}
 

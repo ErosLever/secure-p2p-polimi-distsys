@@ -327,9 +327,23 @@ loop:		while(true){
 						enSocket.getOutputStream().flush();
 						break;
 						
-					case OPEN_COMMUNICATION: // params: 
+					case OPEN_COMMUNICATION: // params: NodeInfo, SharedFile
 					{
+						NodeInfo node = enSocket.getInputStream().readObject( NodeInfo.class );
+						SharedFile file = enSocket.getInputStream().readObject( SharedFile.class );
+						enSocket.getInputStream().checkDigest();
 						
+						EncryptedClientSocket comm = enSockFact.getEncryptedClientSocket( node.getAddress(), node.getPublicKey() );
+						comm.getOutputStream().write( Request.ADD_TRUSTED_DOWNLOAD );
+						comm.getOutputStream().writeVariableSize( clientNode );
+						comm.getOutputStream().writeVariableSize( file );
+						comm.getOutputStream().sendDigest();
+						
+						Response reply = comm.getInputStream().readEnum( Response.class );
+						comm.getInputStream().checkDigest();
+						enSocket.getOutputStream().write( reply );
+						enSocket.getOutputStream().sendDigest();
+						enSocket.getOutputStream().flush();
 						
 						break;
 					}
