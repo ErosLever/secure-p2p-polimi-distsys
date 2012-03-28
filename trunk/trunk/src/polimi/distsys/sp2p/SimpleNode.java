@@ -120,7 +120,7 @@ public class SimpleNode extends Node {
 			}
 			
 			@Override
-			public void addTrustedNode(NodeInfo node) {
+			public void addTrustedDownload(NodeInfo node, SharedFile file) {
 				rh.addConnectedNode( node );
 			}
 		});

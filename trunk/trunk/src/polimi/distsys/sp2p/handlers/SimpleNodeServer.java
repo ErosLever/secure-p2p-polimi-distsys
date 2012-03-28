@@ -24,7 +24,7 @@ public abstract class SimpleNodeServer implements ListenerCallback {
 		this.node = node;
 	}
 	
-	public abstract void addTrustedNode( NodeInfo node );
+	public abstract void addTrustedDownload( NodeInfo node, SharedFile file );
 	
 	public abstract NodeInfo getCorrespondingNode( PublicKey key );
 	
@@ -76,14 +76,17 @@ loop:		while( true ){
 					break;
 				}
 				
-				case ADD_TRUSTED_NODE:
+				case ADD_TRUSTED_DOWNLOAD:
 				{
 					if( clientNode.isSuper() ){
 						
 						NodeInfo toAdd = sock.getInputStream().readObject( NodeInfo.class );
+						SharedFile file = sock.getInputStream().readObject( SharedFile.class );
 						sock.getInputStream().checkDigest();
 						
-						addTrustedNode( toAdd );
+						addTrustedDownload( toAdd, file );
+						sock.getOutputStream().write( Response.OK );
+						sock.getOutputStream().sendDigest();
 						
 					}else{
 						sock.getOutputStream().write( Response.FAIL );
