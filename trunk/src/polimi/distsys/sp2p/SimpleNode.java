@@ -410,6 +410,22 @@ public class SimpleNode extends Node {
 			throw new IOException( "Server response: got "+reply.name()+" instead of OK");
 	
 	}
+	
+	public void requestCommunicationChannel( NodeInfo node, SharedFile sharedFile ) throws IOException, GeneralSecurityException{
+		synchronized(secureChannel){
+			
+			secureChannel.getOutputStream().write( Request.OPEN_COMMUNICATION );
+			secureChannel.getOutputStream().writeVariableSize( node );
+			secureChannel.getOutputStream().writeVariableSize( sharedFile );
+			secureChannel.getOutputStream().flush();
+			
+			Response reply = secureChannel.getInputStream().readEnum( Response.class );
+			if( ! reply.equals( Response.OK ) )
+				throw new IOException( "Bad response from server" );
+			secureChannel.getInputStream().checkDigest();
+			
+		}
+	}
 		
 	public void startDownload( final RemoteSharedFile file, String filename, final DownloadCallback callback ) throws IOException{
 		File dest = new File( downloadDirectory, filename );
@@ -436,19 +452,7 @@ public class SimpleNode extends Node {
 					@Override
 					public void askCommunicationToNode(NodeInfo node,
 							SharedFile sharedFile) throws IOException, GeneralSecurityException {
-						synchronized(secureChannel){
-							
-							secureChannel.getOutputStream().write( Request.OPEN_COMMUNICATION );
-							secureChannel.getOutputStream().writeVariableSize( node );
-							secureChannel.getOutputStream().writeVariableSize( sharedFile );
-							secureChannel.getOutputStream().flush();
-							
-							Response reply = secureChannel.getInputStream().readEnum( Response.class );
-							if( ! reply.equals( Response.OK ) )
-								throw new IOException( "Bad response from server" );
-							secureChannel.getInputStream().checkDigest();
-							
-						}
+						requestCommunicationChannel( node, sharedFile);
 					}
 			
 		});

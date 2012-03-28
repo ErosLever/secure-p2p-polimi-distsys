@@ -244,7 +244,7 @@ loop:		while(true){
 							//read response
 							Response reply = ecs.getInputStream().readEnum( Response.class );
 							if( reply.equals( Response.OK ) ){
-								Set<RemoteSharedFile> result = ecs.getInputStream().readObject( Set.class );
+								List<RemoteSharedFile> result = ecs.getInputStream().readObject( List.class );
 								ecs.getInputStream().checkDigest();
 								
 								toSend = SearchHandler.mergeLists(toSend, result);
