@@ -39,7 +39,9 @@ public class IncompleteSharedFile extends SharedFile {
 	private IncompleteSharedFile( File destination, byte[] hash, long size ) throws IOException {
 		super( destination.getName(), hash, size);
 		this.dest = destination;
-		this.randFile = new RandomAccessFile( dest, "w" );
+		if(! dest.exists())
+			dest.createNewFile();
+		this.randFile = new RandomAccessFile( dest, "rw" );
 		if( randFile.length() != size )
 			randFile.setLength( size );
 		this.chunks = getChunksFromFile();

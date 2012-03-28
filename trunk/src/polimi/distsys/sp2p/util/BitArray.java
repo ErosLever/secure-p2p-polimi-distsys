@@ -87,7 +87,8 @@ public class BitArray implements Cloneable {
      * @return     boolean value indicating whether this bit has been set.
      */
     public final boolean get( int bit ) {
-        return 0 != ( barray[bit/32] & ( 1<<(bit%32) ) );
+    	Integer value = barray[bit/32];
+        return 0 != ( (value == null ? 0 : value) & ( 1<<(bit%32) ) );
     }
 
     /** Return a new bit array whose bits are exactly the reverse.
