@@ -224,7 +224,7 @@ loop:		while(true){
 						// forward query to other supernodes
 						for( NodeInfo supernode : rh.getSupernodeList() ){
 							// avoid myself ;)
-							if( supernode.equals( this ) )
+							if( this.isRepresentedBy( supernode ) )
 								continue;
 							
 							//connect to the other supernode
@@ -263,7 +263,7 @@ loop:		while(true){
 						// forward query to other supernodes
 						for( NodeInfo supernode : rh.getSupernodeList() ){
 							// avoid myself ;)
-							if( supernode.equals( this ) )
+							if( this.isRepresentedBy( supernode ) )
 								continue;
 							
 							//connect to the other supernode

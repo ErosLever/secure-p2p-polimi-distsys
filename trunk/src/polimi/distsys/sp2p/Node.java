@@ -11,6 +11,7 @@ import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 
+import polimi.distsys.sp2p.containers.NodeInfo;
 import polimi.distsys.sp2p.crypto.EncryptedSocketFactory;
 import polimi.distsys.sp2p.handlers.RoutingHandler;
 
@@ -61,6 +62,10 @@ public abstract class Node {
 	public static PrivateKey parsePrivateKey( byte[] encoded ) throws InvalidKeySpecException, NoSuchAlgorithmException{
 		return KeyFactory.getInstance( EncryptedSocketFactory.ASYMM_ALGO )
 			.generatePrivate( new PKCS8EncodedKeySpec( encoded ) );
+	}
+	
+	public boolean isRepresentedBy(NodeInfo ni){
+		return this.publicKey.equals( ni.getPublicKey() );
 	}
 
 }

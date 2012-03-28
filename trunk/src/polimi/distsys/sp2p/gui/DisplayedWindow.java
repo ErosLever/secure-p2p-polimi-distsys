@@ -42,6 +42,8 @@ import polimi.distsys.sp2p.containers.RemoteSharedFile;
 public class DisplayedWindow extends JFrame {
 
 
+	private static final long serialVersionUID = -39050633494230802L;
+	
 	private SimpleNode sn;
 	private final static String newline = "\n";
 	private final static String genericSecError = "Operazione non riuscita! c'è stato un problema di sicurezza!" + newline;
