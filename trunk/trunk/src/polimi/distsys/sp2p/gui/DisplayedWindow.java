@@ -14,7 +14,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.Vector;
 
 import javax.swing.JButton;
 import javax.swing.JFileChooser;
@@ -36,6 +35,7 @@ import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableModel;
 
 import polimi.distsys.sp2p.SimpleNode;
+import polimi.distsys.sp2p.containers.IncompleteSharedFile;
 import polimi.distsys.sp2p.containers.LocalSharedFile;
 import polimi.distsys.sp2p.containers.RemoteSharedFile;
 
@@ -67,6 +67,15 @@ public class DisplayedWindow extends JFrame {
 	
 	//TAB DOWNLOAD
 	private JPanel tabDownload;
+	private JButton pauseButton;
+	private JButton stopButton;
+	private JPanel groupDownload;
+	private JScrollPane downloadScrollPane;
+	
+	// DOWNLOAD TABLE
+	private DefaultTableModel downloadModel;
+	private HashMap<Integer,IncompleteSharedFile> downloadingFiles;
+	private JTable downloadTable;
 
 	//TAB PUBLISH
 	private JPanel tabListaFile;
@@ -83,6 +92,8 @@ public class DisplayedWindow extends JFrame {
 	//MENU
 	private JMenuBar menuBar;
 	private JMenu menuAzioni;
+	private JMenu menuImpostazioni;
+	private JMenuItem directoryButton;
 	private JMenuItem joinButton;
 	private JMenuItem leaveButton;
 	private JMenuItem exitButton;
@@ -95,12 +106,14 @@ public class DisplayedWindow extends JFrame {
 
 	// File chooser
 	private final JFileChooser fc;
+	private final JFileChooser dc;
 	private JPanel innerContainer;
 
 
 	/**
 	 * Create the frame.
 	 */
+	@SuppressWarnings("serial")
 	public DisplayedWindow(SimpleNode simple) {
 
 		//prendo il riferimento al nodo da visualizzare
@@ -109,6 +122,8 @@ public class DisplayedWindow extends JFrame {
 		//init file chooser
 		fc = new JFileChooser();
 		fc.setFileSelectionMode(JFileChooser.FILES_AND_DIRECTORIES);
+		dc = new JFileChooser();
+		dc.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
 
 
 
@@ -121,9 +136,30 @@ public class DisplayedWindow extends JFrame {
 		setContentPane(contentPane);
 		contentPane.setLayout(new BorderLayout(0, 0));
 		
-		//modelli
-		fileModel = new DefaultTableModel();
-		searchModel = new DefaultTableModel();
+		//modelli ( table con le celle non modificabili )
+		fileModel = new DefaultTableModel(){
+
+		    @Override
+		    public boolean isCellEditable(int row, int column) {
+		       //all cells false
+		       return false;
+		    } };
+		    
+		searchModel = new DefaultTableModel(){
+
+		    @Override
+		    public boolean isCellEditable(int row, int column) {
+		       //all cells false
+		       return false;
+		    } };
+		    
+		downloadModel = new DefaultTableModel(){
+
+		    @Override
+		    public boolean isCellEditable(int row, int column) {
+		       //all cells false
+		       return false;
+		    } };
 
 
 		// MENU
@@ -133,6 +169,9 @@ public class DisplayedWindow extends JFrame {
 
 		menuAzioni = new JMenu("Azioni");
 		menuBar.add(menuAzioni);
+		
+		menuImpostazioni = new JMenu("Impostazioni");
+		menuBar.add(menuImpostazioni);
 
 		joinButton = new JMenuItem("Join");
 		joinButton.addActionListener(new ActionListener() {
@@ -212,9 +251,28 @@ public class DisplayedWindow extends JFrame {
             {
 
 				System.exit(0);
+				//TODO TERMINARE IN MANIERA CLEAN
 
 			}
 
+		});
+		
+		directoryButton = new JMenuItem("Directory...");
+		menuImpostazioni.add(directoryButton);
+		directoryButton.addActionListener(new ActionListener() {
+			
+			@Override
+			public void actionPerformed(ActionEvent arg0) {
+				int retValue = dc.showOpenDialog(tabListaFile);
+
+				if (retValue == JFileChooser.APPROVE_OPTION) {
+
+					File file = dc.getSelectedFile();
+					sn.setDownloadDirectory(file);
+					console.append("Directory per i download impostata:" + file.getPath() + newline);
+				}
+				
+			}
 		});
 
 
@@ -291,12 +349,15 @@ public class DisplayedWindow extends JFrame {
 				
 			}
 		});
+		
+		
 		groupSearch = new JPanel();
 		groupSearch.add(searchButton);
 		groupSearch.add(searchQuery);
 		
 		searchTable = new JTable(searchModel);
 		searchScrollPane = new JScrollPane(searchTable);
+		
 		
 		searchModel.addColumn("Nome");
 		searchModel.addColumn("Peers");
@@ -312,6 +373,22 @@ public class DisplayedWindow extends JFrame {
 		//TAB DOWNLOAD
 		tabDownload = new JPanel();
 		tabbedPane.addTab("Downloads", null, tabDownload, null);
+		
+		tabDownload.setLayout(new BorderLayout(0, 0));
+
+		
+		pauseButton = new JButton("Pausa");
+		stopButton = new JButton("Cancella");
+		
+		groupDownload = new JPanel();
+		
+		groupDownload.add(pauseButton);
+		groupDownload.add(stopButton);
+		
+		downloadTable = new JTable(downloadModel);
+		downloadScrollPane = new JScrollPane(downloadTable);
+		tabDownload.add(groupDownload,BorderLayout.NORTH);
+		tabDownload.add(downloadScrollPane, BorderLayout.CENTER);
 		
 		// TAB PUBLISH
 		tabListaFile = new JPanel();
