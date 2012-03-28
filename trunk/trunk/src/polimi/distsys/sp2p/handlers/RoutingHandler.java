@@ -75,6 +75,7 @@ public class RoutingHandler {
 					PublicKey pubKey = Node.parsePublicKey( Serializer.base64Decode(tmp[2]) ); 
 							
 					listOfSuperNodes.add(new NodeInfo(pubKey, new InetSocketAddress(host, port), true));
+					trustedKeys.add( pubKey );
 				
 			}
 		}
@@ -112,6 +113,9 @@ public class RoutingHandler {
 	}
 	
 	public NodeInfo getConnectedNode( PublicKey key ){
+		for( NodeInfo supernode : listOfSuperNodes )
+			if( supernode.getPublicKey().equals( key ) )
+				return supernode;
 		for( NodeInfo node : connectedNodes )
 			if( node.getPublicKey().equals( key ) )
 				return node;

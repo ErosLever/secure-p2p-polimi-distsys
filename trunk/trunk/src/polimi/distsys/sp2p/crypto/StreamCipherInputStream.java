@@ -77,7 +77,10 @@ public class StreamCipherInputStream extends FilterInputStream {
 			byte[] ret = new byte[ len ];
 			int received = 0;
 			while( received < len ){
-				received += in.read( ret, received, len-received );
+				int count = in.read( ret, received, len-received );
+				if( count == -1)
+					throw new IOException( "end of stream reached too early" );
+				received += count;
 			}
 			return ret; 
 		}else{

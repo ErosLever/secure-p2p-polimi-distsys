@@ -148,11 +148,11 @@ public class EncryptedSocketFactory {
 		}
 		
 		public boolean isInputShutdown(){
-			return socket.isInputShutdown();
+			return socket.isInputShutdown() || socket.isClosed();
 		}
 		
 		public boolean isOutputShutdown(){
-			return socket.isOutputShutdown();
+			return socket.isOutputShutdown() || socket.isClosed();
 		}
 		
 		public boolean isConnected(){

@@ -110,9 +110,9 @@ public class SuperNode extends Node implements ListenerCallback {
 	@Override
 	public void handleRequest(SocketChannel client) {
 
+		EncryptedServerSocket enSocket = null;
 		try {
-			EncryptedServerSocket enSocket = enSockFact.getEncryptedServerSocket(
-					client.socket(), credentials);
+			enSocket = enSockFact.getEncryptedServerSocket( client.socket(), credentials );
 			NodeInfo clientNode = connectedClients.containsKey( enSocket.getClientPublicKey() )
 					? connectedClients.get( enSocket.getClientPublicKey() )
 					: null;
@@ -228,26 +228,30 @@ loop:		while(true){
 						
 						// forward query to other supernodes
 						for( NodeInfo supernode : rh.getSupernodeList() ){
-							// avoid myself ;)
-							if( this.isRepresentedBy( supernode ) )
-								continue;
-							
-							//connect to the other supernode
-							EncryptedClientSocket ecs = enSockFact.getEncryptedClientSocket( 
-									supernode.getAddress(), supernode.getPublicKey() );
-							
-							//forward
-							ecs.getOutputStream().write( Request.FORWARD_SEARCH );
-							ecs.getOutputStream().writeVariableSize( query.getBytes("utf-8") );
-							ecs.getOutputStream().sendDigest();
-							
-							//read response
-							Response reply = ecs.getInputStream().readEnum( Response.class );
-							if( reply.equals( Response.OK ) ){
-								List<RemoteSharedFile> result = ecs.getInputStream().readObject( List.class );
-								ecs.getInputStream().checkDigest();
+							try{
+								// avoid myself ;)
+								if( this.isRepresentedBy( supernode ) )
+									continue;
 								
-								toSend = SearchHandler.mergeLists(toSend, result);
+								//connect to the other supernode
+								EncryptedClientSocket ecs = enSockFact.getEncryptedClientSocket( 
+										supernode.getAddress(), supernode.getPublicKey() );
+								
+								//forward
+								ecs.getOutputStream().write( Request.FORWARD_SEARCH );
+								ecs.getOutputStream().writeVariableSize( query.getBytes("utf-8") );
+								ecs.getOutputStream().sendDigest();
+								
+								//read response
+								Response reply = ecs.getInputStream().readEnum( Response.class );
+								if( reply.equals( Response.OK ) ){
+									List<RemoteSharedFile> result = ecs.getInputStream().readObject( List.class );
+									ecs.getInputStream().checkDigest();
+									
+									toSend = SearchHandler.mergeLists(toSend, result);
+								}
+							}catch(IOException e){
+								//do nothing
 							}
 						}
 						
@@ -267,29 +271,33 @@ loop:		while(true){
 						
 						// forward query to other supernodes
 						for( NodeInfo supernode : rh.getSupernodeList() ){
-							// avoid myself ;)
-							if( this.isRepresentedBy( supernode ) )
-								continue;
-							
-							//connect to the other supernode
-							EncryptedClientSocket ecs = enSockFact.getEncryptedClientSocket( 
-									supernode.getAddress(), supernode.getPublicKey() );
-							
-							//forward
-							ecs.getOutputStream().write( Request.FORWARD_SEARCH_BY_HASH );
-							ecs.getOutputStream().write( hash );
-							ecs.getOutputStream().sendDigest();
-							
-							//read response
-							Response reply = ecs.getInputStream().readEnum( Response.class );
-							if( reply.equals( Response.OK ) ){
-								RemoteSharedFile result = ecs.getInputStream().readObject( RemoteSharedFile.class );
-								ecs.getInputStream().checkDigest();
-								if( fileToSend == null )
-									fileToSend = result;
-								else if( result != null ){
-									fileToSend.merge( result );
+							try{
+								// avoid myself ;)
+								if( this.isRepresentedBy( supernode ) )
+									continue;
+								
+								//connect to the other supernode
+								EncryptedClientSocket ecs = enSockFact.getEncryptedClientSocket( 
+										supernode.getAddress(), supernode.getPublicKey() );
+								
+								//forward
+								ecs.getOutputStream().write( Request.FORWARD_SEARCH_BY_HASH );
+								ecs.getOutputStream().write( hash );
+								ecs.getOutputStream().sendDigest();
+								
+								//read response
+								Response reply = ecs.getInputStream().readEnum( Response.class );
+								if( reply.equals( Response.OK ) ){
+									RemoteSharedFile result = ecs.getInputStream().readObject( RemoteSharedFile.class );
+									ecs.getInputStream().checkDigest();
+									if( fileToSend == null )
+										fileToSend = result;
+									else if( result != null ){
+										fileToSend.merge( result );
+									}
 								}
+							}catch(IOException e){
+								// do nothing
 							}
 						}
 						
@@ -365,8 +373,12 @@ loop:		while(true){
 			}
 		}catch(IOException e){
 			e.printStackTrace();
+			if( enSocket != null )
+				enSocket.close();
 		}catch(GeneralSecurityException e){
 			e.printStackTrace();
+			if( enSocket != null )
+				enSocket.close();
 		} catch (ClassNotFoundException e) {
 			e.printStackTrace();
 		}

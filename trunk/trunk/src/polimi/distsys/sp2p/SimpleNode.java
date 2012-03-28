@@ -168,6 +168,8 @@ public class SimpleNode extends Node {
 						secureChannel.getInputStream().checkDigest();
 						this.myAddress = Inet4Address.getByAddress( ip );
 						break;
+					}else{
+						secureChannel.close();
 					}
 
 				} catch(IOException e) {
@@ -417,6 +419,7 @@ public class SimpleNode extends Node {
 			secureChannel.getOutputStream().write( Request.OPEN_COMMUNICATION );
 			secureChannel.getOutputStream().writeVariableSize( node );
 			secureChannel.getOutputStream().writeVariableSize( sharedFile );
+			secureChannel.getOutputStream().sendDigest();
 			secureChannel.getOutputStream().flush();
 			
 			Response reply = secureChannel.getInputStream().readEnum( Response.class );
@@ -427,7 +430,9 @@ public class SimpleNode extends Node {
 		}
 	}
 		
-	public void startDownload( final RemoteSharedFile file, String filename, final DownloadCallback callback ) throws IOException{
+	public void startDownload( final RemoteSharedFile file, String filename, final DownloadCallback callback ) throws IOException, IllegalStateException, GeneralSecurityException, ClassNotFoundException{
+		checkConnectionWithSuperNode();
+		
 		File dest = new File( downloadDirectory, filename );
 		DownloadHandler dh = new DownloadHandler( enSockFact, file, dest,
 				new DownloadCallback(){
