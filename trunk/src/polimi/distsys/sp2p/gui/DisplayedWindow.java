@@ -12,15 +12,14 @@ import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.Vector;
 
-import javax.swing.DefaultListModel;
 import javax.swing.JButton;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
-import javax.swing.JList;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
@@ -268,7 +267,7 @@ public class DisplayedWindow extends JFrame {
 					
 					try {
 						
-						Vector<RemoteSharedFile> tmp = sn.search(query);
+						List<RemoteSharedFile> tmp = sn.search(query);
 						refreshSearch(tmp);
 						
 						
@@ -449,7 +448,7 @@ public class DisplayedWindow extends JFrame {
 		
 	}
 	
-	private void refreshSearch(Vector<RemoteSharedFile> list) {
+	private void refreshSearch(List<RemoteSharedFile> list) {
 		
 		searchedFiles = new HashMap<Integer, RemoteSharedFile>();
 		
