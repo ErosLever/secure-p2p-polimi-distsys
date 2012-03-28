@@ -13,7 +13,6 @@ import java.util.List;
 import java.util.Random;
 import java.util.Scanner;
 import java.util.Set;
-import java.util.TreeSet;
 
 import polimi.distsys.sp2p.Node;
 import polimi.distsys.sp2p.containers.NodeInfo;
@@ -128,7 +127,7 @@ public class RoutingHandler {
 		
 		//TODO cambiare nome list-> set
 		// return a copy of the list
-		return new TreeSet<NodeInfo>( listOfSuperNodes );
+		return new HashSet<NodeInfo>( listOfSuperNodes );
 	}
 	
 	public Set<PublicKey> getTrustedKeys(){

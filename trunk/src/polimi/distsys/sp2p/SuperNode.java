@@ -91,6 +91,11 @@ public class SuperNode extends Node implements ListenerCallback {
 			PublicKey tmpKey = parsePublicKey(Serializer.base64Decode(sc.nextLine())); 
 			this.credentials.add( tmpKey );
 		}
+		
+		for( NodeInfo supernode : rh.getSupernodeList() ){
+			this.credentials.add( supernode.getPublicKey() );
+		}
+		
 		sc.close();
 
 		//inizializza il listener
