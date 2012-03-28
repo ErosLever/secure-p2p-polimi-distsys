@@ -372,7 +372,7 @@ public class DisplayedWindow extends JFrame {
 						try {
 							
 							RemoteSharedFile rmt = sn.searchByHash(searchedFiles.get(value).getHash());
-							String name = sn.getDownloadDirectory().getAbsolutePath() + File.separator + searchModel.getValueAt(value, 0);
+							String name = (String)searchModel.getValueAt(value, 0);
 							sn.startDownload(rmt,name,(new DownloadCallback() {
 								
 								@Override
