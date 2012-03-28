@@ -8,6 +8,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
 import java.util.Scanner;
@@ -39,7 +40,8 @@ public class RoutingHandler {
 	//Lista usata per tener traccia dei supernodi ( noti )
 	private final Set<NodeInfo> listOfSuperNodes;
 	//Lista usata per memorizzare i nodi attualmente connessi al nodo di riferimento
-	private  Set<NodeInfo> connectedNodes;
+	private final Set<PublicKey> trustedKeys;
+	private final Set<NodeInfo> connectedNodes;
 	
 	
 	/**
@@ -53,8 +55,9 @@ public class RoutingHandler {
 	 */
 	public RoutingHandler() throws IOException, ClassNotFoundException, InvalidKeySpecException, NoSuchAlgorithmException {
 		
-		listOfSuperNodes = new TreeSet<NodeInfo>();
-		connectedNodes = new TreeSet<NodeInfo>();
+		listOfSuperNodes = new HashSet<NodeInfo>();
+		connectedNodes = new HashSet<NodeInfo>();
+		trustedKeys = new HashSet<PublicKey>();
 		
 		InputStream is = new FileInputStream(info);
 		
@@ -91,9 +94,14 @@ public class RoutingHandler {
 	 * @param sa
 	 */
 	public void addConnectedNode(NodeInfo sa) {
+		addTrustedKey( sa.getPublicKey() );
 		connectedNodes.add( sa );
 	}
-	
+
+	public void addTrustedKey( PublicKey key ) {
+		trustedKeys.add( key );
+	}
+
 	/**
 	 * rimuove un nodo dalla lista dei nodi connessi
 	 * supernodo: lo fa quando un nodo chiama la LEAVE oppure se risulta inattivo per un tot di tempo ( disconnessione anomala )
@@ -102,9 +110,14 @@ public class RoutingHandler {
 	 */
 	public void removeConnectedNode(NodeInfo sa) {
 		connectedNodes.remove( sa );
-	
 	}
 	
+	public NodeInfo getConnectedNode( PublicKey key ){
+		for( NodeInfo node : connectedNodes )
+			if( node.getPublicKey().equals( key ) )
+				return node;
+		return null;
+	}
 	
 	/**
 	 *  restituisce la lista dei supernodi presenti nel network
@@ -118,6 +131,9 @@ public class RoutingHandler {
 		return new TreeSet<NodeInfo>( listOfSuperNodes );
 	}
 	
+	public Set<PublicKey> getTrustedKeys(){
+		return trustedKeys;
+	}
 	
 	/**
 	 * recupera le informazioni su un nodo connesso raggiungibile ( oggetto classe NodeInfo,

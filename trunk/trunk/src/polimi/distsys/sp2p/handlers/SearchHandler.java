@@ -1,11 +1,14 @@
 
 package polimi.distsys.sp2p.handlers;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.Vector;
 
+import polimi.distsys.sp2p.containers.IncompleteSharedFile;
+import polimi.distsys.sp2p.containers.LocalSharedFile;
 import polimi.distsys.sp2p.containers.RemoteSharedFile;
 import polimi.distsys.sp2p.containers.SharedFile;
 
@@ -40,6 +43,22 @@ public class SearchHandler {
 		
 		return result;
 
+	}
+	
+	public static IncompleteSharedFile searchLocal( SharedFile toSearch, Set<LocalSharedFile> completed, Set<IncompleteSharedFile> incompleted ) throws IOException{
+		for( LocalSharedFile localFile : completed ){
+			if( toSearch.equals( localFile ) ){
+				return new IncompleteSharedFile( localFile );
+			}
+		}
+		
+		for( IncompleteSharedFile incomplete : incompleted ){
+			if( toSearch.equals( incomplete ) ){
+				return incomplete;
+			}
+		}
+
+		return null;
 	}
 	
 	public static RemoteSharedFile localSearchByHash( byte[] hash, List<RemoteSharedFile> list ) {

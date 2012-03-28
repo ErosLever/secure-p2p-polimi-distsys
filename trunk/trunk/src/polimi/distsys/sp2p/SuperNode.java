@@ -145,14 +145,13 @@ loop:		while(true){
 							enSocket.getInputStream().checkDigest();
 							
 							for( SharedFile sf : list ){
-								String filename = sf.getFileNames().iterator().next();
 								
 								if( ! files.contains( sf ) ){
 									RemoteSharedFile rsf = new RemoteSharedFile(
-											sf.getHash(), filename, sf.getSize(), clientNode );
+											sf.getHash(), sf.getFileNames(), sf.getSize(), clientNode );
 									files.add( rsf );
 								}else{
-									files.get( files.indexOf( sf ) ).addPeer( filename, clientNode );
+									files.get( files.indexOf( sf ) ).addPeer( clientNode, sf.getFileNames() );
 								}
 							}
 							
@@ -328,6 +327,12 @@ loop:		while(true){
 						enSocket.getOutputStream().flush();
 						break;
 						
+					case OPEN_COMMUNICATION: // params: 
+					{
+						
+						
+						break;
+					}
 					default:
 						
 						enSocket.getOutputStream().write( Response.FAIL );

@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.Socket;
 import java.security.GeneralSecurityException;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
@@ -13,21 +14,26 @@ import java.security.PublicKey;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
 import java.util.Set;
-import java.util.Vector;
 
+import polimi.distsys.sp2p.containers.IncompleteSharedFile;
 import polimi.distsys.sp2p.containers.LocalSharedFile;
 import polimi.distsys.sp2p.containers.NodeInfo;
 import polimi.distsys.sp2p.containers.RemoteSharedFile;
+import polimi.distsys.sp2p.containers.SharedFile;
 import polimi.distsys.sp2p.containers.messages.Message.Request;
 import polimi.distsys.sp2p.containers.messages.Message.Response;
 import polimi.distsys.sp2p.crypto.EncryptedSocketFactory.EncryptedClientSocket;
+import polimi.distsys.sp2p.crypto.EncryptedSocketFactory.EncryptedServerSocket;
 import polimi.distsys.sp2p.handlers.DownloadHandler;
 import polimi.distsys.sp2p.handlers.RoutingHandler;
+import polimi.distsys.sp2p.handlers.SimpleNodeServer;
 import polimi.distsys.sp2p.handlers.DownloadHandler.DownloadCallback;
 import polimi.distsys.sp2p.util.BitArray;
+import polimi.distsys.sp2p.util.Listener;
 import polimi.distsys.sp2p.util.PortChecker;
 import polimi.distsys.sp2p.util.Serializer;
 
@@ -49,8 +55,8 @@ public class SimpleNode extends Node {
 	private static final String infoFile = "simplenode.info";
 
 	// lista dei file da condividere in locale
-	private Set<LocalSharedFile> fileList;
-	private Set<RemoteSharedFile> incompleteList;
+	private final Set<LocalSharedFile> fileList;
+	private final Set<IncompleteSharedFile> incompleteFiles;
 	// directory locale dove prendere e salvare i file
 	private File downloadDirectory; 
 	/** States whether the node is connected to a SuperNode */
@@ -59,7 +65,9 @@ public class SimpleNode extends Node {
 	
 	private InetAddress myAddress;
 	
-	private final Map<RemoteSharedFile, DownloadHandler> downHandlers;
+	private final Listener listener;
+	
+	private final Map<IncompleteSharedFile, DownloadHandler> downHandlers;
 	
 	// COSTRUTTORI
 	public static SimpleNode fromFile() 
@@ -90,12 +98,32 @@ public class SimpleNode extends Node {
 
 		//la lista dei file e inizialmente vuota
 		fileList = new HashSet<LocalSharedFile>();
+		incompleteFiles = new HashSet<IncompleteSharedFile>();
 
 		//il nodo non e connesso al network quando viene creato
 		supernode = null;
 		secureChannel = null;
 		
-		downHandlers = new HashMap<RemoteSharedFile, DownloadHandler>();
+		downHandlers = new HashMap<IncompleteSharedFile, DownloadHandler>();
+		
+		listener = new Listener( this.socket.getChannel(), new SimpleNodeServer( this ) {
+			
+			@Override
+			public NodeInfo getCorrespondingNode( PublicKey key ) {
+				return rh.getConnectedNode( key );
+			}
+			
+			@Override
+			public EncryptedServerSocket getEncryptedServerSocket(Socket sock)
+					throws IOException, GeneralSecurityException {
+				return enSockFact.getEncryptedServerSocket( sock, rh.getTrustedKeys() );
+			}
+			
+			@Override
+			public void addTrustedNode(NodeInfo node) {
+				rh.addConnectedNode( node );
+			}
+		});
 
 	}
 
@@ -339,7 +367,7 @@ public class SimpleNode extends Node {
 
 	//SEARCH
 	@SuppressWarnings("unchecked")
-	public Vector<RemoteSharedFile> search(String query) throws IllegalStateException, GeneralSecurityException, IOException, ClassNotFoundException {
+	public List<RemoteSharedFile> search(String query) throws IllegalStateException, GeneralSecurityException, IOException, ClassNotFoundException {
 		
 		checkConnectionWithSuperNode();
 		
@@ -352,7 +380,7 @@ public class SimpleNode extends Node {
 
 		if( reply == Response.OK )  {
 			
-			Vector<RemoteSharedFile> searchList = secureChannel.getInputStream().readObject(Vector.class);
+			List<RemoteSharedFile> searchList = secureChannel.getInputStream().readObject(List.class);
 			secureChannel.getInputStream().checkDigest();
 			
 			return searchList;
@@ -404,15 +432,37 @@ public class SimpleNode extends Node {
 						downHandlers.remove( file );
 						callback.gotException( ex );
 					}
+
+					@Override
+					public void askCommunicationToNode(NodeInfo node,
+							SharedFile sharedFile) throws IOException, GeneralSecurityException {
+						synchronized(secureChannel){
+							
+							secureChannel.getOutputStream().write( Request.OPEN_COMMUNICATION );
+							secureChannel.getOutputStream().writeVariableSize( node );
+							secureChannel.getOutputStream().writeVariableSize( sharedFile );
+							secureChannel.getOutputStream().flush();
+							
+							Response reply = secureChannel.getInputStream().readEnum( Response.class );
+							if( ! reply.equals( Response.OK ) )
+								throw new IOException( "Bad response from server" );
+							secureChannel.getInputStream().checkDigest();
+							
+						}
+					}
 			
 		});
+		IncompleteSharedFile incomplete = dh.getIncompleteFile();
+		downHandlers.put( dh.getIncompleteFile(), dh);
+		if( ! incompleteFiles.contains( incomplete ) )
+			incompleteFiles.add( incomplete );
 		dh.start();
-		downHandlers.put(file, dh);
+		
 	}
 	
 	public void stopAllDownloads() throws IOException, GeneralSecurityException{
 		while(downHandlers.size() > 0){
-			RemoteSharedFile file = downHandlers.keySet().iterator().next();
+			IncompleteSharedFile file = downHandlers.keySet().iterator().next();
 			DownloadHandler dh = downHandlers.get( file );
 			dh.setActive( false );
 			try {
@@ -470,8 +520,8 @@ public class SimpleNode extends Node {
 		return fileList;
 	}
 	
-	public Set<RemoteSharedFile> getIncompleteFiles() {
-		return downHandlers.keySet();
+	public Set<IncompleteSharedFile> getIncompleteFiles() {
+		return incompleteFiles;
 	}
 	
 	public void setDownloadDirectory( File file ){
