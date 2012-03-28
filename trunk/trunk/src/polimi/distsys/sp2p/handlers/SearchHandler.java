@@ -2,6 +2,7 @@
 package polimi.distsys.sp2p.handlers;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
@@ -108,7 +109,7 @@ public class SearchHandler {
 		List<String> tokens = Arrays.asList( query.split(" ") );
 		for( String name : sf.getFileNames() ){
 			//tokens del nome del file
-			List<String> pieces = Arrays.asList( name.split(" " ) );
+			List<String> pieces = new ArrayList<String>( Arrays.asList( name.split(" " ) ) );
 			// intersezione tra le due liste
 			pieces.retainAll( tokens );
 			// se l'intersezione non è vuota, abbiamo un match
