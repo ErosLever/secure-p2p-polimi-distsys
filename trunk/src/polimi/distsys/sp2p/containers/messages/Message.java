@@ -75,10 +75,16 @@ public class Message implements Serializable {
 		SEARCH_BY_HASH, 
 		FORWARD_SEARCH_BY_HASH, 
 		ADD_TRUSTED_DOWNLOAD, 
-		OPEN_COMMUNICATION
+		OPEN_COMMUNICATION,
+		PING
 	}
 
 	public enum Response implements Action {
-		OK, FAIL, NOSECRET, ALREADY_CONNECTED, NOT_CONNECTED
+		OK, 
+		FAIL, 
+		NOSECRET, 
+		ALREADY_CONNECTED, 
+		NOT_CONNECTED,
+		PONG
 	}
 }

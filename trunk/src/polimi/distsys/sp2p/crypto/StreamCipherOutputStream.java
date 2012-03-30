@@ -41,17 +41,17 @@ public class StreamCipherOutputStream extends FilterOutputStream {
 	 */
 	public synchronized void write( InputStream in ) throws GeneralSecurityException, IOException{
 		digestStream.setInput( in );
-		digestStream.receivedBytes = 0;
+		//digestStream.receivedBytes = 0;
 		in = wrap( digestStream, ciphers);
-		int total = 0;
+		//int total = 0;
 		while( true ){
 			int count = in.read( buffer, 0, buffer.length );
 			if( count == -1)
 				break;
-			total += count;
+			//total += count;
 			out.write( buffer, 0, count );
 		}
-		System.out.println( digestStream.receivedBytes );
+		//System.out.println( digestStream.receivedBytes );
 	}
 
 	private synchronized InputStream wrap( InputStream in, List<ResettableCipher> ciphers ) throws GeneralSecurityException, IOException {

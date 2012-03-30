@@ -39,7 +39,7 @@ import polimi.distsys.sp2p.util.Serializer;
  */
 public class EncryptedSocketFactory {
 	
-	private static final int SOCKET_TIMEOUT = 5*60*1000; // 600 sec
+	public static final int SOCKET_TIMEOUT = 5*1000; // 5 sec
 	
 	/**
 	 * Ciphering configuration
