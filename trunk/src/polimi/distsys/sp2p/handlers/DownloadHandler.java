@@ -3,6 +3,7 @@ package polimi.distsys.sp2p.handlers;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.security.GeneralSecurityException;
 import java.util.Collections;
 import java.util.List;
@@ -20,7 +21,8 @@ import polimi.distsys.sp2p.util.BitArray;
 
 public class DownloadHandler extends Thread {
 	
-	public static final int CHUNK_SIZE = 512 * 1024; 
+	public static final int CHUNK_SIZE = IncompleteSharedFile.CHUNK_SIZE;
+	//public static final int SUB_CHUNK = 1024;
 	public static final int RESFRESH_CHUNK_AVAILABILITY = 30 * 1000; 
 	
 	private final EncryptedSocketFactory enSockFact;
@@ -121,8 +123,12 @@ public class DownloadHandler extends Thread {
 								// altrimenti lo scarico
 								queue.add( i );
 							}
-							
-							downloadChunk( sock, i );
+							int chunkSize = CHUNK_SIZE;
+							if( i == incompleteFile.getChunks().length() -1){
+								//l'utlimo chunk può essere più piccolo
+								chunkSize = (int) (incompleteFile.getSize() - i * CHUNK_SIZE);
+							}
+							downloadChunk( sock, i, chunkSize );
 							
 						}
 					}
@@ -163,19 +169,20 @@ public class DownloadHandler extends Thread {
 			return availableChunks;
 		}
 		
-		public void downloadChunk( EncryptedClientSocket sock, final int i ) throws IOException, GeneralSecurityException{
+		public void downloadChunk( EncryptedClientSocket sock, int i, int chunkSize ) throws IOException, GeneralSecurityException{
 			sock.getOutputStream().write( Request.FETCH_CHUNK );
-			sock.getOutputStream().write( incompleteFile.toRemoteSharedFile( node ) );
+			sock.getOutputStream().writeVariableSize( incompleteFile.toRemoteSharedFile( node ) );
 			sock.getOutputStream().write( i );
 			sock.getOutputStream().sendDigest();
 			
 			Response reply = sock.getInputStream().readEnum( Response.class );
 			if( reply.equals( Response.OK ) ){
 				
-				final byte[] chunk = sock.getInputStream().readFixedSizeAsByteArray( CHUNK_SIZE );
+				InputStream chunk = sock.getInputStream().readFixedSize( chunkSize );
+				incompleteFile.writeChunk( i, chunk );
+				chunk.close();
 				sock.getInputStream().checkDigest();
 				
-				incompleteFile.writeChunk( i, chunk );
 				
 			}
 			
