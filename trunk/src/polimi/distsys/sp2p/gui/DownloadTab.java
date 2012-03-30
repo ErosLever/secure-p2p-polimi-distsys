@@ -17,7 +17,11 @@ import polimi.distsys.sp2p.containers.IncompleteSharedFile;
 
 public class DownloadTab extends JPanel {
 	
+	private static final long serialVersionUID = 642389033105767922L;
+	
+	@SuppressWarnings("unused")
 	private SimpleNode sn;
+	@SuppressWarnings("unused")
 	private JTextArea console;
 	
 	private JButton pauseButton;
@@ -27,6 +31,7 @@ public class DownloadTab extends JPanel {
 
 	// DOWNLOAD TABLE
 	private DefaultTableModel downloadModel;
+	@SuppressWarnings("unused")
 	private HashMap<Integer,IncompleteSharedFile> downloadingFiles;
 	private JTable downloadTable;
 	

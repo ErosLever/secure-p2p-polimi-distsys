@@ -5,6 +5,7 @@
 
 package polimi.distsys.sp2p.util;
 
+import java.io.IOException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
@@ -100,7 +101,24 @@ public class Listener extends Thread {
             try {
                 callback.handleRequest(sc);
             } finally {
-                MessageStreamEnd.closeSocketChannel(sc);
+                try{
+                    sc.socket().shutdownInput();
+                }catch(IOException e){}
+                try{
+                    sc.socket().getInputStream().close();
+                }catch(IOException e){}
+                try{
+                    sc.socket().getOutputStream().close();
+                }catch(IOException e){}
+                try{
+                    sc.socket().shutdownOutput();
+                }catch(IOException e){}
+                try{
+                    sc.socket().close();
+                }catch(IOException e){}
+                try{
+                    sc.close();
+                }catch(IOException e){}
             }
         }
 

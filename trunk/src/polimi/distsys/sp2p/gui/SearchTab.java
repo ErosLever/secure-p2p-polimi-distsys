@@ -17,11 +17,11 @@ import javax.swing.JTextField;
 import javax.swing.table.DefaultTableModel;
 
 import polimi.distsys.sp2p.SimpleNode;
+import polimi.distsys.sp2p.containers.IncompleteSharedFile;
 import polimi.distsys.sp2p.containers.NodeInfo;
 import polimi.distsys.sp2p.containers.RemoteSharedFile;
 import polimi.distsys.sp2p.containers.SharedFile;
 import polimi.distsys.sp2p.handlers.DownloadHandler.DownloadCallback;
-import polimi.distsys.sp2p.util.BitArray;
 
 public class SearchTab extends JPanel{
 
@@ -49,6 +49,8 @@ public class SearchTab extends JPanel{
 		this.console = c;
 
 		searchModel = new DefaultTableModel(){
+
+			private static final long serialVersionUID = -714736532354862439L;
 
 			@Override
 			public boolean isCellEditable(int row, int column) {
@@ -122,29 +124,25 @@ public class SearchTab extends JPanel{
 							sn.startDownload(rmt,name,(new DownloadCallback() {
 
 								@Override
-								public void receivedChunk(int i, byte[] value) {
+								public void receivedChunk( IncompleteSharedFile isf, int i) {
 									console.append("ho ricevuto: " + String.valueOf(i));
-
 								}
 
 								@Override
-								public void gotException(Exception ex) {
+								public void gotException( IncompleteSharedFile isf, Exception ex) {
 									console.append(ex.getMessage());
 									console.append("Ho fatto casino!");
-
 								}
 
 								@Override
-								public void endOfDownload(BitArray writtenChunks) {
+								public void endOfDownload(IncompleteSharedFile isf) {
 									console.append("ANDIAMO A VINCERE CAZZO!!!, download completato");
-
 								}
 
 								@Override
 								public void askCommunicationToNode(NodeInfo node, SharedFile sharedFile)
 										throws IOException, GeneralSecurityException {
-
-
+									//Do nothing
 								}
 							}));
 

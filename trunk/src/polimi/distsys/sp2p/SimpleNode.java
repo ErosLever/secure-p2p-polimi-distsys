@@ -33,7 +33,6 @@ import polimi.distsys.sp2p.handlers.DownloadHandler;
 import polimi.distsys.sp2p.handlers.RoutingHandler;
 import polimi.distsys.sp2p.handlers.SimpleNodeServer;
 import polimi.distsys.sp2p.handlers.DownloadHandler.DownloadCallback;
-import polimi.distsys.sp2p.util.BitArray;
 import polimi.distsys.sp2p.util.Listener;
 import polimi.distsys.sp2p.util.PortChecker;
 import polimi.distsys.sp2p.util.Serializer;
@@ -66,6 +65,7 @@ public class SimpleNode extends Node {
 	
 	private InetAddress myAddress;
 	
+	@SuppressWarnings("unused")
 	private final Listener listener;
 	
 	private final Map<IncompleteSharedFile, DownloadHandler> downHandlers;
@@ -457,20 +457,34 @@ public class SimpleNode extends Node {
 				new DownloadCallback(){
 
 					@Override
-					public void endOfDownload( BitArray writtenChunks ) {
+					public void endOfDownload( IncompleteSharedFile isf ) {
 						downHandlers.remove( file );
-						callback.endOfDownload( writtenChunks );
+						callback.endOfDownload( isf );
+						try{
+							if( isf.isCompleted() ){
+								isf.matchCheckSum();
+								fileList.add( new LocalSharedFile( isf.getDestinationFile() ) );
+							}
+						}catch(IOException e){
+							callback.gotException( isf, e );
+						} catch (NoSuchAlgorithmException e) {
+							callback.gotException( isf, e );
+						} catch (GeneralSecurityException e) {
+							callback.gotException( isf, e );
+						}
 					}
 
 					@Override
-					public void receivedChunk( int i, byte[] value ) {
-						callback.receivedChunk( i, value );
+					public void receivedChunk( IncompleteSharedFile isf, int i ) {
+						callback.receivedChunk( isf, i );
+						if( ! incompleteFiles.contains( isf ) )
+							incompleteFiles.add( isf );
 					}
 
 					@Override
-					public void gotException( Exception ex ) {
+					public void gotException( IncompleteSharedFile isf, Exception ex ) {
 						downHandlers.remove( file );
-						callback.gotException( ex );
+						callback.gotException( isf, ex );
 					}
 
 					@Override
@@ -480,10 +494,7 @@ public class SimpleNode extends Node {
 					}
 			
 		});
-		IncompleteSharedFile incomplete = dh.getIncompleteFile();
 		downHandlers.put( dh.getIncompleteFile(), dh);
-		if( ! incompleteFiles.contains( incomplete ) )
-			incompleteFiles.add( incomplete );
 		dh.start();
 		
 	}

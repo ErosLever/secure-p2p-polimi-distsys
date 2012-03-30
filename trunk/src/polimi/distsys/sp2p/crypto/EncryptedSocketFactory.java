@@ -120,6 +120,7 @@ public class EncryptedSocketFactory {
 			return outputStream;
 		}
 		
+		@SuppressWarnings("unused")
 		public InetAddress getRemoteAddress(){
 			return socket.getInetAddress();
 		}
@@ -155,6 +156,7 @@ public class EncryptedSocketFactory {
 			return socket.isOutputShutdown() || socket.isClosed();
 		}
 		
+		@SuppressWarnings("unused")
 		public boolean isConnected(){
 			return ! ( isOutputShutdown() || isInputShutdown() );
 		}
