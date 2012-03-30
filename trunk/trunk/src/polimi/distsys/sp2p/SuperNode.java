@@ -261,6 +261,8 @@ loop:		while(true){
 							}
 						}
 						
+						toSend = SearchHandler.filterOutNode( toSend, clientNode );
+						
 						//send back to the client
 						enSocket.getOutputStream().write( Response.OK );
 						enSocket.getOutputStream().writeVariableSize( toSend );
@@ -306,6 +308,8 @@ loop:		while(true){
 								// do nothing
 							}
 						}
+						
+						fileToSend.removePeer( clientNode );
 						
 						//send back to the client
 						enSocket.getOutputStream().write( Response.OK );
