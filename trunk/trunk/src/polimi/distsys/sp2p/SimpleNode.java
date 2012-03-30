@@ -26,6 +26,7 @@ import polimi.distsys.sp2p.containers.RemoteSharedFile;
 import polimi.distsys.sp2p.containers.SharedFile;
 import polimi.distsys.sp2p.containers.messages.Message.Request;
 import polimi.distsys.sp2p.containers.messages.Message.Response;
+import polimi.distsys.sp2p.crypto.EncryptedSocketFactory;
 import polimi.distsys.sp2p.crypto.EncryptedSocketFactory.EncryptedClientSocket;
 import polimi.distsys.sp2p.crypto.EncryptedSocketFactory.EncryptedServerSocket;
 import polimi.distsys.sp2p.handlers.DownloadHandler;
@@ -68,6 +69,8 @@ public class SimpleNode extends Node {
 	private final Listener listener;
 	
 	private final Map<IncompleteSharedFile, DownloadHandler> downHandlers;
+	
+	private long lastCommunicationTime;
 	
 	// COSTRUTTORI
 	public static SimpleNode fromFile() 
@@ -167,6 +170,7 @@ public class SimpleNode extends Node {
 						byte[] ip = secureChannel.getInputStream().readFixedSizeAsByteArray(4);
 						secureChannel.getInputStream().checkDigest();
 						this.myAddress = Inet4Address.getByAddress( ip );
+						lastCommunicationTime = System.currentTimeMillis();
 						break;
 					}else{
 						secureChannel.close();
@@ -191,7 +195,22 @@ public class SimpleNode extends Node {
 		if( ! secureChannel.isConnected() ){
 			secureChannel = enSockFact.getEncryptedClientSocket( 
 					supernode.getAddress(), supernode.getPublicKey() );
+		}else{
+			if( System.currentTimeMillis() - lastCommunicationTime < EncryptedSocketFactory.SOCKET_TIMEOUT )
+				return;
+			try{
+				secureChannel.getOutputStream().write( Request.PING );
+				secureChannel.getOutputStream().flush();
+				Response reply = secureChannel.getInputStream().readEnum( Response.class );
+				if( !reply.equals( Response.PONG ) )
+					throw new IOException();
+			}catch(IOException e){
+				secureChannel.close();
+				secureChannel = enSockFact.getEncryptedClientSocket( 
+						supernode.getAddress(), supernode.getPublicKey() );
+			}
 		}
+		lastCommunicationTime = System.currentTimeMillis();
 	}
 	
 	//LEAVE

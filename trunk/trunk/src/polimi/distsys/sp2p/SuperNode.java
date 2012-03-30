@@ -367,17 +367,23 @@ loop:		while(true){
 						
 						break;
 					}
+					
+					case PING:
+					{
+						enSocket.getOutputStream().write( Response.PONG );
+						enSocket.getOutputStream().flush();
+					}
 					default:
 						
 						enSocket.getOutputStream().write( Response.FAIL );
 	
 					case CLOSE_CONN:
 						
-						enSocket.close();
 						break loop;
 				}
 			
 			}
+			enSocket.close();
 		}catch(IOException e){
 			e.printStackTrace();
 			if( enSocket != null )

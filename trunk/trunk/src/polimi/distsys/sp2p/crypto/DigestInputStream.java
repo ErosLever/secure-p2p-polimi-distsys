@@ -12,7 +12,7 @@ public class DigestInputStream extends InputStream {
 	private boolean active;
 	
 	//debug
-	public long receivedBytes = 0;
+	//public long receivedBytes = 0;
 	
 	public DigestInputStream() throws NoSuchAlgorithmException{
 		this( null );
@@ -55,7 +55,7 @@ public class DigestInputStream extends InputStream {
 		int count = in.read(buf, start, maxRead );
 		if( active && count != -1 ){
 			digest.update( buf, start, count );
-			receivedBytes += count;
+			//receivedBytes += count;
 		}
 		return count; 
 	}
@@ -65,7 +65,7 @@ public class DigestInputStream extends InputStream {
 		int ret = in.read();
 		if( ret != -1 && active ){
 			digest.update( (byte) (ret & 0xFF) );
-			receivedBytes++;
+			//receivedBytes++;
 		}
 		return ret;
 	}
