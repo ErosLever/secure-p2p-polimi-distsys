@@ -10,6 +10,7 @@ import java.util.Vector;
 
 import polimi.distsys.sp2p.containers.IncompleteSharedFile;
 import polimi.distsys.sp2p.containers.LocalSharedFile;
+import polimi.distsys.sp2p.containers.NodeInfo;
 import polimi.distsys.sp2p.containers.RemoteSharedFile;
 import polimi.distsys.sp2p.containers.SharedFile;
 
@@ -118,5 +119,19 @@ public class SearchHandler {
 			}
 		}
 		return false;
+	}
+	
+	public static List<RemoteSharedFile> filterOutNode( List<RemoteSharedFile> list, NodeInfo toFilter ){
+		for(int i=0;i<list.size();){
+			if( list.get( i ).getPeers().contains( toFilter ) ){
+				list.get( i ).removePeer( toFilter );
+				if( ! list.get( i ).hasPeers() ){
+					list.remove( i );
+					continue;
+				}
+			}
+			i++;
+		}
+		return list;
 	}
 }
