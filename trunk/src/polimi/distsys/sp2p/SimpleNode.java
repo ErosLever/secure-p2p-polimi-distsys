@@ -11,6 +11,7 @@ import java.security.GeneralSecurityException;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -265,14 +266,14 @@ public class SimpleNode extends Node {
 	 * @throws ClassNotFoundException 
 	 * @throws IllegalStateException 
 	 */
-	public void publish( Set<LocalSharedFile> fileList ) throws IOException, GeneralSecurityException, IllegalStateException, ClassNotFoundException {
+	public void publish( Set<? extends SharedFile> fileList ) throws IOException, GeneralSecurityException, IllegalStateException, ClassNotFoundException {
 
 		checkConnectionWithSuperNode();
 		
-		Set<LocalSharedFile> toSend = new HashSet<LocalSharedFile>();
+		Set<SharedFile> toSend = new HashSet<SharedFile>();
 		
 		//evita duplicati
-		for( LocalSharedFile f : fileList) {
+		for( SharedFile f : fileList) {
 			if(!this.fileList.contains(f)) {
 				toSend.add(f);
 			}
@@ -289,7 +290,12 @@ public class SimpleNode extends Node {
 		
 		Response reply = secureChannel.getInputStream().readEnum( Response.class );
 		if( reply == Response.OK ){
-			this.fileList.addAll( toSend );
+			for( SharedFile sf : toSend )
+				if( sf instanceof LocalSharedFile )
+					this.fileList.add( (LocalSharedFile) sf );
+				else if( sf instanceof IncompleteSharedFile )
+					if( ! this.incompleteFiles.contains( sf ) )
+						this.incompleteFiles.add( (IncompleteSharedFile) sf );
 		}else{
 			
 			//TODO NON DOVREMMO DISCONNETTERE IL NODO IN QUESTO CASO
@@ -464,6 +470,7 @@ public class SimpleNode extends Node {
 							if( isf.isCompleted() ){
 								isf.matchCheckSum();
 								fileList.add( new LocalSharedFile( isf.getDestinationFile() ) );
+								incompleteFiles.remove( isf );
 							}
 						}catch(IOException e){
 							callback.gotException( isf, e );
@@ -477,8 +484,14 @@ public class SimpleNode extends Node {
 					@Override
 					public void receivedChunk( IncompleteSharedFile isf, int i ) {
 						callback.receivedChunk( isf, i );
-						if( ! incompleteFiles.contains( isf ) )
+						if( ! incompleteFiles.contains( isf ) ){
 							incompleteFiles.add( isf );
+							try {
+								publish( Collections.singleton( isf ) );
+							} catch (Exception e) {
+								callback.gotException( isf, e );
+							}
+						}
 					}
 
 					@Override
