@@ -389,15 +389,15 @@ loop:		while(true){
 			}
 			enSocket.close();
 		}catch(IOException e){
-			e.printStackTrace();
+			//e.printStackTrace();
 			if( enSocket != null )
 				enSocket.close();
 		}catch(GeneralSecurityException e){
-			e.printStackTrace();
+			//e.printStackTrace();
 			if( enSocket != null )
 				enSocket.close();
 		} catch (ClassNotFoundException e) {
-			e.printStackTrace();
+			//e.printStackTrace();
 		}
 	}
 
