@@ -125,18 +125,18 @@ public class SearchTab extends JPanel{
 
 								@Override
 								public void receivedChunk( IncompleteSharedFile isf, int i) {
-									console.append("ho ricevuto: " + String.valueOf(i));
+									console.append("ho ricevuto: " + String.valueOf(i) + "\n");
 								}
 
 								@Override
 								public void gotException( IncompleteSharedFile isf, Exception ex) {
-									console.append(ex.getMessage());
-									console.append("Ho fatto casino!");
+									console.append(ex.getMessage() + "\n");
+									console.append("Ho fatto casino!" + "\n");
 								}
 
 								@Override
 								public void endOfDownload(IncompleteSharedFile isf) {
-									console.append("ANDIAMO A VINCERE CAZZO!!!, download completato");
+									console.append("ANDIAMO A VINCERE CAZZO!!!, download completato" + "\n");
 								}
 
 								@Override

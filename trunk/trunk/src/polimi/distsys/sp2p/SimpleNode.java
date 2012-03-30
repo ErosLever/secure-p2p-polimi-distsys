@@ -487,7 +487,7 @@ public class SimpleNode extends Node {
 						if( ! incompleteFiles.contains( isf ) ){
 							incompleteFiles.add( isf );
 							try {
-								publish( Collections.singleton( isf ) );
+								publish( Collections.singleton( isf.toRemoteSharedFile( SimpleNode.this.getNodeInfo() ) ) );
 							} catch (Exception e) {
 								callback.gotException( isf, e );
 							}
