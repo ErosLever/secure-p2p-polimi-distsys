@@ -11,6 +11,7 @@ import java.security.GeneralSecurityException;
 import polimi.distsys.sp2p.crypto.StreamCipherInputStream.LimitedInputStream;
 import polimi.distsys.sp2p.util.BitArray;
 
+@SuppressWarnings("serial")
 public class IncompleteSharedFile extends SharedFile {
 
 	public static final int CHUNK_SIZE = 256*1024;
@@ -62,6 +63,10 @@ public class IncompleteSharedFile extends SharedFile {
 	
 	private File getTempFile(){
 		return new File( dest.getPath() + ".tmp" );
+	}
+	
+	public File getDestinationFile(){
+		return dest;
 	}
 	
 	private BitArray getChunksFromFile() throws IOException{

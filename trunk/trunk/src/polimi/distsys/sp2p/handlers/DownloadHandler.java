@@ -58,7 +58,7 @@ public class DownloadHandler extends Thread {
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
-		callback.endOfDownload( incompleteFile.getChunks() );
+		callback.endOfDownload( incompleteFile );
 		
 	}
 	
@@ -139,7 +139,7 @@ public class DownloadHandler extends Thread {
 				
 			} catch (Exception e) {
 				DownloadHandler.this.exception = e;
-				callback.gotException( e );
+				callback.gotException( incompleteFile, e );
 			}
 			
 		}
@@ -183,7 +183,7 @@ public class DownloadHandler extends Thread {
 				chunk.close();
 				sock.getInputStream().checkDigest();
 				
-				
+				callback.receivedChunk( incompleteFile, i );
 			}
 			
 			// serve il cast perchè altrimenti rimuove 
@@ -200,11 +200,11 @@ public class DownloadHandler extends Thread {
 	
 	public static interface DownloadCallback {
 		
-		public void receivedChunk( int i , byte[] value );
+		public void receivedChunk( IncompleteSharedFile isf, int i );
 		
-		public void endOfDownload( BitArray writtenChunks );
+		public void endOfDownload( IncompleteSharedFile isf );
 		
-		public void gotException( Exception ex );
+		public void gotException( IncompleteSharedFile isf, Exception ex );
 		
 		public void askCommunicationToNode( NodeInfo node, SharedFile sharedFile ) throws IOException, GeneralSecurityException;
 		

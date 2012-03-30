@@ -6,11 +6,12 @@ import java.awt.Font;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
-import javax.swing.JTabbedPane;
 import javax.swing.JTextArea;
 import javax.swing.UIManager;
 
 public class Console  extends JPanel{
+	
+	private static final long serialVersionUID = 382586517848516349L;
 	
 	private JTextArea console;
 	private JScrollPane scrollPane;

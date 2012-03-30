@@ -6,6 +6,7 @@ import java.security.NoSuchAlgorithmException;
 
 import polimi.distsys.sp2p.handlers.SecurityHandler;
 
+@SuppressWarnings("serial")
 public class LocalSharedFile extends SharedFile {
 	
 	private final transient File file;
