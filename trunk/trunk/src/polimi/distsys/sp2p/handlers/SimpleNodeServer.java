@@ -2,6 +2,7 @@ package polimi.distsys.sp2p.handlers;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.Socket;
 import java.nio.channels.SocketChannel;
 import java.security.GeneralSecurityException;
@@ -38,7 +39,12 @@ public abstract class SimpleNodeServer implements ListenerCallback {
 			NodeInfo clientNode = getCorrespondingNode( sock.getClientPublicKey() );
 			
 loop:		while( true ){
-				Request req = sock.getInputStream().readEnum( Request.class );
+				Request req = null;
+				try{
+					req = sock.getInputStream().readEnum( Request.class );
+				}catch(IOException e){
+					break;
+				}
 				switch( req ){
 				
 				case LIST_AVAILABLE_CHUNKS:
@@ -67,10 +73,11 @@ loop:		while( true ){
 					IncompleteSharedFile found = SearchHandler.searchLocal( 
 							file, node.getFileList(), node.getIncompleteFiles() );
 					
-					byte[] toSend = found.readChunk( index );
+					InputStream chunk = found.getChunkAsInputStream( index );
 					
 					sock.getOutputStream().write( Response.OK );
-					sock.getOutputStream().write( toSend );
+					sock.getOutputStream().write( chunk );
+					chunk.close();
 					sock.getOutputStream().sendDigest();
 					
 					break;

@@ -4,14 +4,16 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.RandomAccessFile;
 import java.security.GeneralSecurityException;
 
+import polimi.distsys.sp2p.crypto.StreamCipherInputStream.LimitedInputStream;
 import polimi.distsys.sp2p.util.BitArray;
 
 public class IncompleteSharedFile extends SharedFile {
 
-	public static final int CHUNK_SIZE = 512*1024;
+	public static final int CHUNK_SIZE = 256*1024;
 	
 	private final File dest;
 	private final RandomAccessFile randFile;
@@ -91,11 +93,37 @@ public class IncompleteSharedFile extends SharedFile {
 		return chunk;
 	}
 	
+	public synchronized InputStream getChunkAsInputStream(int i) throws IOException{
+		FileInputStream fis = new FileInputStream( dest );
+		fis.skip( 1L * CHUNK_SIZE * i );
+		int toRead = (int) Math.min( CHUNK_SIZE, size - i*CHUNK_SIZE );
+		return new LimitedInputStream( fis, toRead );
+	}
+
+	
 	public synchronized void writeChunk(int i, byte[] chunk) throws IOException{
 		
 		randFile.seek( 1L * CHUNK_SIZE * i );
 		randFile.write( chunk );
 		
+		chunks.set( i );
+		
+		persist();
+	}
+	
+	public synchronized void writeChunk(int i, InputStream chunk) throws IOException{
+		int toRead = (int) Math.min( CHUNK_SIZE, size - i*CHUNK_SIZE );
+		chunk = new LimitedInputStream( chunk, toRead );
+		randFile.seek( 1L * CHUNK_SIZE * i );
+		int count;
+		byte[] buf = new byte[1024];
+		while( (count = chunk.read(buf)) != -1 ){
+			randFile.write( buf, 0, count );
+			toRead -= count;
+		}
+		if( toRead > 0 ){
+			throw new IOException("Stream end reached early");
+		}
 		chunks.set( i );
 		
 		persist();

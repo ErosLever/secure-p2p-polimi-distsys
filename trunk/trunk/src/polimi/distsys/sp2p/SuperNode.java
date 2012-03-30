@@ -87,13 +87,14 @@ public class SuperNode extends Node implements ListenerCallback {
 		//legge le credenziali
 		Scanner sc = new Scanner( new FileInputStream( credentials ) );
 		while(sc.hasNext()) {
-
 			PublicKey tmpKey = parsePublicKey(Serializer.base64Decode(sc.nextLine())); 
 			this.credentials.add( tmpKey );
+			rh.addTrustedKey( tmpKey );
 		}
 		
 		for( NodeInfo supernode : rh.getSupernodeList() ){
 			this.credentials.add( supernode.getPublicKey() );
+			rh.addTrustedKey( supernode.getPublicKey() );
 		}
 		
 		sc.close();
@@ -112,14 +113,19 @@ public class SuperNode extends Node implements ListenerCallback {
 
 		EncryptedServerSocket enSocket = null;
 		try {
-			enSocket = enSockFact.getEncryptedServerSocket( client.socket(), credentials );
+			enSocket = enSockFact.getEncryptedServerSocket( client.socket(), rh.getTrustedKeys() );
 			NodeInfo clientNode = connectedClients.containsKey( enSocket.getClientPublicKey() )
 					? connectedClients.get( enSocket.getClientPublicKey() )
 					: null;
 			
 loop:		while(true){
 
-				Request req = enSocket.getInputStream().readEnum( Request.class );
+				Request req =null;
+				try{
+					req = enSocket.getInputStream().readEnum( Request.class );
+				}catch(IOException e){
+					break;
+				}
 	
 				switch(req) {
 				
@@ -354,6 +360,7 @@ loop:		while(true){
 						
 						Response reply = comm.getInputStream().readEnum( Response.class );
 						comm.getInputStream().checkDigest();
+						comm.close();
 						enSocket.getOutputStream().write( reply );
 						enSocket.getOutputStream().sendDigest();
 						enSocket.getOutputStream().flush();

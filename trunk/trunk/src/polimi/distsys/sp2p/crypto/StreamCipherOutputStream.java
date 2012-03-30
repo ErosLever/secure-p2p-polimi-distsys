@@ -41,13 +41,17 @@ public class StreamCipherOutputStream extends FilterOutputStream {
 	 */
 	public synchronized void write( InputStream in ) throws GeneralSecurityException, IOException{
 		digestStream.setInput( in );
+		digestStream.receivedBytes = 0;
 		in = wrap( digestStream, ciphers);
+		int total = 0;
 		while( true ){
 			int count = in.read( buffer, 0, buffer.length );
 			if( count == -1)
 				break;
+			total += count;
 			out.write( buffer, 0, count );
 		}
+		System.out.println( digestStream.receivedBytes );
 	}
 
 	private synchronized InputStream wrap( InputStream in, List<ResettableCipher> ciphers ) throws GeneralSecurityException, IOException {
@@ -236,11 +240,15 @@ public class StreamCipherOutputStream extends FilterOutputStream {
 		
 		public int getOutputSize( int inputLen ){
 			int blocks = (int) Math.ceil( 1.0 * inputLen / inputBlockSize );
+			/*if( inputLen > 128*1024)
+				blocks++;*/
 			return outputBlockSize * blocks;
 		}
 		
 		public int getInputSize( int outSize ){
 			int blocks = (int) Math.ceil( 1.0 * outSize / outputBlockSize );
+			if( outSize >= 256*1024)
+				blocks++;
 			return inputBlockSize * blocks;
 		}
 

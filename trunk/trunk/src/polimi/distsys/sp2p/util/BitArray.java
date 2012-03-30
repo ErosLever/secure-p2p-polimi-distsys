@@ -3,7 +3,6 @@ package polimi.distsys.sp2p.util;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.Scanner;
 import java.util.Vector;
 
 /**
@@ -58,6 +57,8 @@ public class BitArray implements Cloneable {
      * @param bit  index of this bit
      */
     public final void set( int bit ) {
+    	if( barray[bit/32] == null )
+    		barray[bit/32] = 0;
         barray[bit/32] |= 1<<(bit%32);
     }
 
@@ -88,7 +89,9 @@ public class BitArray implements Cloneable {
      */
     public final boolean get( int bit ) {
     	Integer value = barray[bit/32];
-        return 0 != ( (value == null ? 0 : value) & ( 1<<(bit%32) ) );
+    	value = value == null ? 0 : value;
+    	value &= 1<< (bit%32) ;
+        return value != 0;
     }
 
     /** Return a new bit array whose bits are exactly the reverse.
@@ -238,11 +241,20 @@ public class BitArray implements Cloneable {
     }
     
     public static BitArray deserialize( InputStream in ) throws IOException{
-    	Vector<Boolean> parsed = new Vector<Boolean>();
-    	Scanner sc = new Scanner( in );
-    	while( sc.hasNext( "[01]" ) )
-    		parsed.add( sc.next("[01]").equals( "1" ) );
-    	return new BitArray( parsed.size(), parsed.toArray(new Integer[0]) ); 
+    	Vector<Integer> parsed = new Vector<Integer>();
+    	int count = 0;
+    	int read;
+    	while( ( read = in.read() ) != -1 ){
+    		if( count % 32 == 0 )
+    			parsed.add( 0 );
+    		if( read == (byte)'1' ){
+        		int val = parsed.get( count / 32 );
+    			val |= 1 << ( count % 32 );
+    			parsed.set( count / 32, val );
+    		}
+    		count++;
+    	}
+    	return new BitArray( count, parsed.toArray(new Integer[0]) ); 
     }
 
 }
