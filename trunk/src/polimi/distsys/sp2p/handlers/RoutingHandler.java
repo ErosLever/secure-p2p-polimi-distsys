@@ -8,14 +8,17 @@ import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.Scanner;
 import java.util.Set;
 
 import polimi.distsys.sp2p.Node;
 import polimi.distsys.sp2p.containers.NodeInfo;
+import polimi.distsys.sp2p.containers.SharedFile;
 import polimi.distsys.sp2p.util.Serializer;
 
 /**
@@ -40,7 +43,7 @@ public class RoutingHandler {
 	private final Set<NodeInfo> listOfSuperNodes;
 	//Lista usata per memorizzare i nodi attualmente connessi al nodo di riferimento
 	private final Set<PublicKey> trustedKeys;
-	private final Set<NodeInfo> connectedNodes;
+	private final Map<NodeInfo, Set<SharedFile>> connectedNodes;
 	
 	
 	/**
@@ -55,7 +58,7 @@ public class RoutingHandler {
 	public RoutingHandler() throws IOException, ClassNotFoundException, InvalidKeySpecException, NoSuchAlgorithmException {
 		
 		listOfSuperNodes = new HashSet<NodeInfo>();
-		connectedNodes = new HashSet<NodeInfo>();
+		connectedNodes = new HashMap<NodeInfo, Set<SharedFile>>();
 		trustedKeys = new HashSet<PublicKey>();
 		
 		InputStream is = new FileInputStream(info);
@@ -90,13 +93,17 @@ public class RoutingHandler {
 	 * 
 	 * @param sa
 	 */
-	public void addConnectedNode(NodeInfo sa) {
+	public void addConnectedNode(NodeInfo sa, SharedFile sf ) {
 		addTrustedKey( sa.getPublicKey() );
-		connectedNodes.add( sa );
+		if( ! connectedNodes.containsKey( sa ) )
+			connectedNodes.put( sa, new HashSet<SharedFile>() );
+		if( ! connectedNodes.get( sa ).contains( sf ) )
+			connectedNodes.get( sa ).add( sf );
 	}
 
 	public void addTrustedKey( PublicKey key ) {
-		trustedKeys.add( key );
+		if( ! trustedKeys.contains( key ) )
+			trustedKeys.add( key );
 	}
 
 	/**
@@ -113,10 +120,14 @@ public class RoutingHandler {
 		for( NodeInfo supernode : listOfSuperNodes )
 			if( supernode.getPublicKey().equals( key ) )
 				return supernode;
-		for( NodeInfo node : connectedNodes )
+		for( NodeInfo node : connectedNodes.keySet() )
 			if( node.getPublicKey().equals( key ) )
 				return node;
 		return null;
+	}
+	
+	public Set<SharedFile> getAllowedDownloads( NodeInfo client ){
+		return connectedNodes.get( client );
 	}
 	
 	/**
@@ -146,7 +157,7 @@ public class RoutingHandler {
 			if(supernode.getAddress().equals(isa))
 				return supernode;
 		}
-		for (NodeInfo simplenode : connectedNodes) {
+		for (NodeInfo simplenode : connectedNodes.keySet()) {
 			if(simplenode.getAddress().equals(isa))
 				return simplenode;
 		}

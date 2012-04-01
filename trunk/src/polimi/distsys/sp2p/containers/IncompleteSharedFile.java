@@ -63,7 +63,7 @@ public class IncompleteSharedFile extends SharedFile {
 			chunks.set( i );
 	}
 	
-	private File getTempFile(){
+	public File getTempFile(){
 		return new File( dest.getPath() + ".tmp" );
 	}
 	
