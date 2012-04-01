@@ -31,9 +31,9 @@ import polimi.distsys.sp2p.crypto.EncryptedSocketFactory;
 import polimi.distsys.sp2p.crypto.EncryptedSocketFactory.EncryptedClientSocket;
 import polimi.distsys.sp2p.crypto.EncryptedSocketFactory.EncryptedServerSocket;
 import polimi.distsys.sp2p.handlers.DownloadHandler;
+import polimi.distsys.sp2p.handlers.DownloadHandler.DownloadCallback;
 import polimi.distsys.sp2p.handlers.RoutingHandler;
 import polimi.distsys.sp2p.handlers.SimpleNodeServer;
-import polimi.distsys.sp2p.handlers.DownloadHandler.DownloadCallback;
 import polimi.distsys.sp2p.util.Listener;
 import polimi.distsys.sp2p.util.PortChecker;
 import polimi.distsys.sp2p.util.Serializer;
@@ -468,8 +468,10 @@ public class SimpleNode extends Node {
 						callback.endOfDownload( isf );
 						try{
 							if( isf.isCompleted() ){
+								// lancia general sec exc se da errore
 								isf.matchCheckSum();
 								fileList.add( new LocalSharedFile( isf.getDestinationFile() ) );
+								// lo tolgo dai download in corso
 								incompleteFiles.remove( isf );
 							}
 						}catch(IOException e){
@@ -483,7 +485,9 @@ public class SimpleNode extends Node {
 
 					@Override
 					public void receivedChunk( IncompleteSharedFile isf, int i ) {
+						// notifico il chiamante che ho ricevuto il chunk
 						callback.receivedChunk( isf, i );
+						//se il file non e negli incompleti ( e il primo chunk ricevuto ) lo aggiungo alla lista e faccio la publish del file
 						if( ! incompleteFiles.contains( isf ) ){
 							incompleteFiles.add( isf );
 							try {
@@ -531,6 +535,26 @@ public class SimpleNode extends Node {
 			}
 			downHandlers.remove( file );
 		}
+	}
+	
+	public void stopDownload(IncompleteSharedFile isf) throws IOException, GeneralSecurityException{
+		
+			DownloadHandler dh = downHandlers.get( isf );
+			dh.setActive( false );
+			try {
+				dh.join();
+			} catch (InterruptedException e) {
+			}
+			Exception ex = dh.checkException(); 
+			
+			if( ex != null ){
+				if( ex instanceof IOException )
+					throw new IOException( ex );
+				if( ex instanceof GeneralSecurityException )
+					throw new GeneralSecurityException( ex );
+			}
+			downHandlers.remove( isf );
+		
 	}
 	
 	public void resumeDownload( File file, DownloadCallback callback ) throws IOException, IllegalStateException, GeneralSecurityException, ClassNotFoundException{
@@ -595,6 +619,10 @@ public class SimpleNode extends Node {
 
 	public NodeInfo getSuperNode() {
 		return supernode;
+	}
+
+	public Map<IncompleteSharedFile, DownloadHandler> getDownHandlers() {
+		return downHandlers;
 	}
 
 

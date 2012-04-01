@@ -67,6 +67,14 @@ public class DownloadHandler extends Thread {
 			thread.setActive( active );
 	}
 	
+	public boolean isActive() {
+		for( NodeQuerySender thread : threads ) {
+			if(thread.isActive())
+				return true;
+		}
+		return false;
+	}
+	
 	public IncompleteSharedFile getIncompleteFile(){
 		return incompleteFile;
 	}
@@ -195,6 +203,10 @@ public class DownloadHandler extends Thread {
 		public void setActive(boolean active){
 			this.active = active;
 		}
+
+		public boolean isActive() {
+			return active;
+		}
 		
 	}
 	
@@ -207,6 +219,7 @@ public class DownloadHandler extends Thread {
 		public void gotException( IncompleteSharedFile isf, Exception ex );
 		
 		public void askCommunicationToNode( NodeInfo node, SharedFile sharedFile ) throws IOException, GeneralSecurityException;
+		
 		
 	}
 

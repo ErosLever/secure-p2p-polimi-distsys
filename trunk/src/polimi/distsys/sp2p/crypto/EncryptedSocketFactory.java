@@ -1,21 +1,16 @@
 package polimi.distsys.sp2p.crypto;
 
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.net.ServerSocket;
 import java.net.Socket;
 import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
 import java.security.KeyPair;
-import java.security.KeyPairGenerator;
-import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -25,8 +20,6 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
 import polimi.distsys.sp2p.crypto.StreamCipherOutputStream.ResettableCipher;
-import polimi.distsys.sp2p.util.PortChecker;
-import polimi.distsys.sp2p.util.Serializer;
 
 /**
  * 
@@ -39,7 +32,9 @@ import polimi.distsys.sp2p.util.Serializer;
  */
 public class EncryptedSocketFactory {
 	
+
 	public static final int SOCKET_TIMEOUT = 5*1000; // 5 sec
+
 	
 	/**
 	 * Ciphering configuration
@@ -120,7 +115,6 @@ public class EncryptedSocketFactory {
 			return outputStream;
 		}
 		
-		@SuppressWarnings("unused")
 		public InetAddress getRemoteAddress(){
 			return socket.getInetAddress();
 		}
@@ -156,7 +150,6 @@ public class EncryptedSocketFactory {
 			return socket.isOutputShutdown() || socket.isClosed();
 		}
 		
-		@SuppressWarnings("unused")
 		public boolean isConnected(){
 			return ! ( isOutputShutdown() || isInputShutdown() );
 		}
@@ -277,126 +270,4 @@ public class EncryptedSocketFactory {
 		
 	}
 	
-	
-	/** 
-	 *  TESTING PURPOSE
-	 * @param args
-	 * @throws IOException
-	 * @throws GeneralSecurityException
-	 */
-	public static void main(String[] args) throws IOException, GeneralSecurityException{
-		
-		class SuperNodeThread extends Thread{
-			private final Set<PublicKey> pklist;
-			private final ServerSocket ss;
-			private final EncryptedSocketFactory esf;
-			
-			
-			public SuperNodeThread(EncryptedSocketFactory esf, Set<PublicKey> pklist) throws NoSuchAlgorithmException{
-				this.esf = esf;
-				this.pklist = pklist;
-				this.ss = PortChecker.getBoundedServerSocketChannel().socket();
-			}
-			
-			public void run(){
-				
-				try{
-					
-					Socket s = ss.accept();
-					
-					EncryptedServerSocket ess = esf.getEncryptedServerSocket(s, pklist);
-					
-					ess.getInputStream().checkDigest();
-					
-					System.out.println("Received connection from simple node");
-					System.out.println("     with PubKey "+ess.getClientPublicKey().getAlgorithm());
-					System.out.println("     communicating over "+ess.sessionKey.getAlgorithm());
-					
-					String str = new String( ess.getInputStream().readVariableSize(), "utf-8" );
-					System.out.println( str );
-					
-					ess.getInputStream().checkDigest();
-					
-					ess.getOutputStream().write( str.length() );
-					ess.getOutputStream().flush();
-					
-					ess.close();
-					
-				}catch(Exception e){
-					e.printStackTrace();
-				}
-			}
-			
-			public InetSocketAddress getAddress(){
-				return new InetSocketAddress(ss.getInetAddress(), ss.getLocalPort());
-			}
-		}
-		
-		class SimpleNodeThread extends Thread{
-			private final PublicKey superKey;
-			private final InetSocketAddress superAddr;
-			private final EncryptedSocketFactory esf;
-			
-			
-			public SimpleNodeThread(EncryptedSocketFactory esf, PublicKey superKey, InetSocketAddress isa) throws NoSuchAlgorithmException{
-				this.esf = esf;
-				this.superKey = superKey;
-				this.superAddr = isa;
-			}
-			
-			public void run(){
-				
-				try{
-						
-					System.out.println("Connecting to supernode");
-					EncryptedClientSocket ecs = esf.getEncryptedClientSocket(superAddr, superKey);
-					
-					ecs.getOutputStream().sendDigest();
-					ecs.getOutputStream().flush();
-					
-					System.out.println("Connected to supernode");
-					ecs.getOutputStream().writeVariableSize( "ciao".getBytes("utf-8") );
-					ecs.getOutputStream().sendDigest();
-					ecs.getOutputStream().flush();
-					
-					int len = ecs.getInputStream().readInt();
-					System.out.println( len );
-					
-					ecs.close();
-						
-				}catch(Exception e){
-					e.printStackTrace();
-				}
-			}
-		}
-		
-		KeyPairGenerator kpg = KeyPairGenerator.getInstance( ASYMM_ALGO );
-		kpg.initialize( ASYMM_KEY_SIZE );
-		KeyPair simplekp = kpg.genKeyPair();
-		FileOutputStream fos = new FileOutputStream("test-simple");
-		fos.write( Serializer.base64Encode( simplekp.getPublic().getEncoded() ).getBytes() );
-		fos.write(":".getBytes());
-		fos.write( Serializer.base64Encode( simplekp.getPrivate().getEncoded() ).getBytes() );
-		fos.close();
-		EncryptedSocketFactory simpleESF = new EncryptedSocketFactory(simplekp);
-
-		kpg.initialize( ASYMM_KEY_SIZE );
-		KeyPair superkp = kpg.genKeyPair();
-		fos = new FileOutputStream("test-super");
-		fos.write( Serializer.base64Encode( superkp.getPublic().getEncoded() ).getBytes() );
-		fos.write(":".getBytes());
-		fos.write( Serializer.base64Encode( superkp.getPrivate().getEncoded() ).getBytes() );
-		fos.close();
-		EncryptedSocketFactory superESF = new EncryptedSocketFactory(superkp);
-
-		Set<PublicKey> pklist = new HashSet<PublicKey>();
-		pklist.add(simplekp.getPublic());
-		SuperNodeThread superN = new SuperNodeThread(superESF, pklist);
-		superN.start();
-		
-		SimpleNodeThread simpleN = new SimpleNodeThread(simpleESF, superkp.getPublic(), superN.getAddress());
-		simpleN.start();
-		
-	}
-
 }

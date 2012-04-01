@@ -62,6 +62,7 @@ public class StreamCipherInputStream extends FilterInputStream {
 		return ret;
 	}
 	
+	
 	public synchronized <E extends Enum<?>>E readEnum( Class<E> type ) throws GeneralSecurityException, IOException{
 		int value = readInt();
 		return type.getEnumConstants()[ value ];
