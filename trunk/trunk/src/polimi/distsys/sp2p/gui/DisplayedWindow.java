@@ -83,12 +83,13 @@ public class DisplayedWindow extends JFrame {
 		innerContainer.add(tabbedPane, BorderLayout.NORTH);
 		
 		//Tabs
-		tabRicerca = new SearchTab(sn,console);
-		tabbedPane.addTab("Search", null, tabRicerca, null);
+		
 		tabDownload = new DownloadTab(sn,console);
 		tabbedPane.addTab("Downloads", null, tabDownload, null);
 		tabListaFile = new FilesTab(sn,console);
 		tabbedPane.addTab("File", null, tabListaFile, null);
+		tabRicerca = new SearchTab(sn,console, tabDownload);
+		tabbedPane.addTab("Search", null, tabRicerca, null);
 		
 	}
 

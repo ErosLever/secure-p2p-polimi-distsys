@@ -2,6 +2,7 @@ package polimi.distsys.sp2p.crypto;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 

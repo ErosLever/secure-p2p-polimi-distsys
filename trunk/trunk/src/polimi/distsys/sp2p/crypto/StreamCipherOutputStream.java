@@ -194,12 +194,22 @@ public class StreamCipherOutputStream extends FilterOutputStream {
 			cipher = Cipher.getInstance(algo);
 			cipher.init(mode, key);
 			
+			//prendi la dimensione del blocco
 			int tempSize = cipher.getBlockSize();
+			//RSA i blocchi successivi al primo non vengono gestiti
+			//sempre se ho capito il discorso di eros xD
 			if(tempSize == 0){
+				//caso in cui il l'algoritmo operi a livello di stream
 				supportMultiBlock = false;
+				
+				//valuto la conversione input output per un byte
 				tempSize = cipher.getOutputSize(1);
 				if(mode == Cipher.ENCRYPT_MODE){
 					outputBlockSize = tempSize;
+					
+					// assumendo RSA limito il blocco in input
+					// per la cifratura a [chiave - 11] byte
+					// altrimenti non va
 					inputBlockSize = tempSize -11;
 				}else{
 					outputBlockSize = tempSize -11;

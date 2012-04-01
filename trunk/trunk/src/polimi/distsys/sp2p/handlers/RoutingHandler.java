@@ -75,15 +75,12 @@ public class RoutingHandler {
 					PublicKey pubKey = Node.parsePublicKey( Serializer.base64Decode(tmp[2]) ); 
 							
 					listOfSuperNodes.add(new NodeInfo(pubKey, new InetSocketAddress(host, port), true));
+					// i supernodi sono sempre un trusted component
 					trustedKeys.add( pubKey );
 				
 			}
 		}
-		else {
-			
-			//TODO gestione caso che non trovi il file supernode.info
-			throw new IOException();
-		}
+		
 	}
 	
 	/**

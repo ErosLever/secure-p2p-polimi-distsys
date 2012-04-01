@@ -26,9 +26,9 @@ import polimi.distsys.sp2p.crypto.EncryptedSocketFactory.EncryptedClientSocket;
 import polimi.distsys.sp2p.crypto.EncryptedSocketFactory.EncryptedServerSocket;
 import polimi.distsys.sp2p.handlers.SearchHandler;
 import polimi.distsys.sp2p.util.Listener;
+import polimi.distsys.sp2p.util.Listener.ListenerCallback;
 import polimi.distsys.sp2p.util.PortChecker;
 import polimi.distsys.sp2p.util.Serializer;
-import polimi.distsys.sp2p.util.Listener.ListenerCallback;
 
 
 /**

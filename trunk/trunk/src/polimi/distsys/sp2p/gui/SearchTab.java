@@ -31,6 +31,7 @@ public class SearchTab extends JPanel{
 	private static final long serialVersionUID = 1L;
 	private SimpleNode sn;
 	private JTextArea console;
+	private DownloadTab downTab;
 
 	private JTextField searchQuery;
 	private JButton searchButton;
@@ -42,11 +43,12 @@ public class SearchTab extends JPanel{
 	private HashMap<Integer, RemoteSharedFile> searchedFiles;
 	private JTable searchTable;
 
-	public SearchTab(SimpleNode s, JTextArea c) {
+	public SearchTab(SimpleNode s, JTextArea c, DownloadTab d) {
 
 		//INIT
 		this.sn = s;
 		this.console = c;
+		this.downTab = d;
 
 		searchModel = new DefaultTableModel(){
 
@@ -125,18 +127,20 @@ public class SearchTab extends JPanel{
 
 								@Override
 								public void receivedChunk( IncompleteSharedFile isf, int i) {
-									console.append("ho ricevuto: " + String.valueOf(i) + "\n");
+									downTab.refreshDownload();
 								}
 
 								@Override
 								public void gotException( IncompleteSharedFile isf, Exception ex) {
-									console.append(ex.getMessage() + "\n");
-									console.append("Ho fatto casino!" + "\n");
+									console.append(ex.getMessage() + DisplayedWindow.newline);
+									console.append("Si è verificato un problema" + DisplayedWindow.newline);
+									downTab.refreshDownload();
 								}
 
 								@Override
 								public void endOfDownload(IncompleteSharedFile isf) {
-									console.append("ANDIAMO A VINCERE CAZZO!!!, download completato" + "\n");
+									console.append("Download Completato:" + isf.getFileNames().iterator().next() + DisplayedWindow.newline);
+									downTab.refreshDownload();
 								}
 
 								@Override
@@ -145,6 +149,8 @@ public class SearchTab extends JPanel{
 									//Do nothing
 								}
 							}));
+							
+							
 
 						} catch (IOException e) {
 							console.append(DisplayedWindow.genericComError);
@@ -186,14 +192,13 @@ public class SearchTab extends JPanel{
 			searchModel.removeRow(0);
 		}
 
-
 		int counter = 0;
 		for(RemoteSharedFile rsf: list) {
 			for(String name: rsf.getFileNames()) {
 				searchedFiles.put(counter, rsf);
 				searchModel.addRow(new Object[] { 
-						name, rsf.getPeers(), rsf.getHash().toString()});
-
+						name, rsf.getPeers().size(), rsf.getHash().toString()});
+			counter++;
 			}
 
 		}	
