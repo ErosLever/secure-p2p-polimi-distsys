@@ -6,6 +6,7 @@ import java.security.PublicKey;
 
 import polimi.distsys.sp2p.Node;
 import polimi.distsys.sp2p.SuperNode;
+import polimi.distsys.sp2p.util.Serializer;
 
 public class NodeInfo implements Serializable {
 
@@ -49,6 +50,20 @@ public class NodeInfo implements Serializable {
 			return ((NodeInfo)o).publicKey.equals( publicKey );
 		}
 		return false;
+	}
+	
+	public static String getNickname( PublicKey key ){
+		int len = 6;
+		int count;
+		byte[] asd = new byte[ len ];
+		byte[] bkey = key.getEncoded();
+		for( count = 0; count < bkey.length - len ; count += len ){
+			for( int j = 0; j < len; j++ )
+				asd[ j ] ^= bkey[ count + j ];
+		}
+		for( int j = 0; count + j < bkey.length; j++ )
+			asd[ j ] ^= bkey[ count + j ];
+		return Serializer.byteArrayToHexString( asd );
 	}
 
 }

@@ -125,7 +125,7 @@ public class SimpleNode extends Node {
 			
 			@Override
 			public void addTrustedDownload(NodeInfo node, SharedFile file) {
-				rh.addConnectedNode( node );
+				rh.addConnectedNode( node, file );
 			}
 		});
 
@@ -473,6 +473,7 @@ public class SimpleNode extends Node {
 								fileList.add( new LocalSharedFile( isf.getDestinationFile() ) );
 								// lo tolgo dai download in corso
 								incompleteFiles.remove( isf );
+								isf.getTempFile().delete();
 							}
 						}catch(IOException e){
 							callback.gotException( isf, e );
@@ -625,5 +626,8 @@ public class SimpleNode extends Node {
 		return downHandlers;
 	}
 
+	public RoutingHandler getRoutingHandler(){
+		return rh;
+	}
 
 }

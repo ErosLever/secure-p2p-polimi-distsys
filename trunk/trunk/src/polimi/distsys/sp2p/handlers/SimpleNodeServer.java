@@ -45,12 +45,23 @@ loop:		while( true ){
 				}catch(IOException e){
 					break;
 				}
+				
+				String clientName = NodeInfo.getNickname( sock.getClientPublicKey() );
+				System.out.println("Ricevuta "+req+" da "+clientName);
+
 				switch( req ){
 				
 				case LIST_AVAILABLE_CHUNKS:
 				{
 					SharedFile file = sock.getInputStream().readObject( SharedFile.class );
 					sock.getInputStream().checkDigest();
+					
+					if( ! node.getRoutingHandler().getAllowedDownloads( clientNode )
+							.contains( file ) ){
+						sock.getOutputStream().write( Response.FAIL );
+						System.out.println("Attempted unauthorized access from node: "+ clientNode );
+						break;
+					}
 					
 					IncompleteSharedFile toSend = SearchHandler.searchLocal( 
 							file, node.getFileList(), node.getIncompleteFiles() );
@@ -100,6 +111,11 @@ loop:		while( true ){
 					}
 					break;
 				}
+				case PING:
+				{
+					sock.getOutputStream().write( Response.PONG );
+					break;
+				}
 				case CLOSE_CONN:
 					
 					break loop;
@@ -107,6 +123,7 @@ loop:		while( true ){
 				default:
 					
 					sock.getOutputStream().write( Response.FAIL );
+					break loop;
 					
 				}
 				sock.getOutputStream().flush();

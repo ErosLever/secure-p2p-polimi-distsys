@@ -88,10 +88,14 @@ public class DownloadHandler extends Thread {
 		private final NodeInfo node;
 		private final DownloadCallback callback;
 		private boolean active = true;
+		private EncryptedClientSocket sock;
+		private long lastCommunicationTime;
+		private BitArray availableChunks;
 		
 		public NodeQuerySender( NodeInfo ni, DownloadCallback dc ){
 			node = ni;
 			callback = dc;
+			lastCommunicationTime = 0;
 		}
 		
 		public void run(){
@@ -101,10 +105,7 @@ public class DownloadHandler extends Thread {
 				
 				callback.askCommunicationToNode( node, incompleteFile.toRemoteSharedFile( node ) );
 				
-				EncryptedClientSocket sock = enSockFact.getEncryptedClientSocket( 
-						node.getAddress(), node.getPublicKey() );
-				
-				BitArray availableChunks = refreshRemoteChunks( sock );
+				refreshRemoteChunks();
 				long lastUpdate = System.currentTimeMillis();
 				
 				for(int i=0;i<incompleteFile.getChunks().length();i++){
@@ -113,7 +114,7 @@ public class DownloadHandler extends Thread {
 						closeConn(sock);
 					
 					if( System.currentTimeMillis() - lastUpdate > RESFRESH_CHUNK_AVAILABILITY ){
-						availableChunks = refreshRemoteChunks( sock );
+						refreshRemoteChunks();
 						lastUpdate = System.currentTimeMillis();
 					}
 					
@@ -138,6 +139,8 @@ public class DownloadHandler extends Thread {
 							}
 							downloadChunk( sock, i, chunkSize );
 							
+							Thread.sleep( 1000 );
+							
 						}
 					}
 				}
@@ -158,7 +161,10 @@ public class DownloadHandler extends Thread {
 			sock.close();
 		}
 		
-		private BitArray refreshRemoteChunks(EncryptedClientSocket sock) throws IOException, GeneralSecurityException{
+		private void refreshRemoteChunks() throws IOException, GeneralSecurityException, ClassNotFoundException{
+			
+			checkConnectionWithPeerNode();
+			
 			sock.getOutputStream().write( Request.LIST_AVAILABLE_CHUNKS );
 			sock.getOutputStream().writeVariableSize( DownloadHandler.this.remoteFile );
 			sock.getOutputStream().sendDigest();
@@ -174,10 +180,13 @@ public class DownloadHandler extends Thread {
 					sock.getInputStream().readFixedSize( 
 							DownloadHandler.this.incompleteFile.getChunks().length() ) );
 			sock.getInputStream().checkDigest();
-			return availableChunks;
+			this.availableChunks = availableChunks;
 		}
 		
-		public void downloadChunk( EncryptedClientSocket sock, int i, int chunkSize ) throws IOException, GeneralSecurityException{
+		public void downloadChunk( EncryptedClientSocket sock, int i, int chunkSize ) throws IOException, GeneralSecurityException, ClassNotFoundException{
+			
+			checkConnectionWithPeerNode();
+
 			sock.getOutputStream().write( Request.FETCH_CHUNK );
 			sock.getOutputStream().writeVariableSize( incompleteFile.toRemoteSharedFile( node ) );
 			sock.getOutputStream().write( i );
@@ -208,6 +217,27 @@ public class DownloadHandler extends Thread {
 			return active;
 		}
 		
+		public void checkConnectionWithPeerNode() throws GeneralSecurityException, IOException, ClassNotFoundException{
+			if( sock == null ? true : ! sock.isConnected() ){
+				sock = enSockFact.getEncryptedClientSocket( 
+						node.getAddress(), node.getPublicKey() );
+			}else{
+				if( System.currentTimeMillis() - lastCommunicationTime < EncryptedSocketFactory.SOCKET_TIMEOUT )
+					return;
+				try{
+					sock.getOutputStream().write( Request.PING );
+					sock.getOutputStream().flush();
+					Response reply = sock.getInputStream().readEnum( Response.class );
+					if( !reply.equals( Response.PONG ) )
+						throw new IOException();
+				}catch(IOException e){
+					sock.close();
+					sock = enSockFact.getEncryptedClientSocket( 
+							node.getAddress(), node.getPublicKey() );
+				}
+			}
+			lastCommunicationTime = System.currentTimeMillis();
+		}
 	}
 	
 	public static interface DownloadCallback {

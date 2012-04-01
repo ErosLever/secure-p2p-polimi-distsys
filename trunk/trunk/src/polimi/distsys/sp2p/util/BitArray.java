@@ -215,10 +215,9 @@ public class BitArray implements Cloneable {
         int xq = size / 32;
         int xr = size % 32;
         for ( int i=0; i<xq; i++ )
-            cnt += countBits( barray[i] );
+            cnt += barray[i] == null ? 0 : countBits( barray[i] );
         if ( 0 != xr )
-            cnt += countBits( barray[xq] & ((1<<xr)-1) );
-
+            cnt += barray[xq] == null ? 0 : countBits( barray[xq] & ((1<<xr)-1) );
         return cnt;
     }
 

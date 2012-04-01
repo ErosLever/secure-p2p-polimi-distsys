@@ -127,6 +127,9 @@ loop:		while(true){
 					break;
 				}
 	
+				String clientName = NodeInfo.getNickname( enSocket.getClientPublicKey() );
+				System.out.println("Ricevuta "+req+" da "+clientName);
+				
 				switch(req) {
 				
 					case LOGIN:
