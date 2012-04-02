@@ -73,7 +73,9 @@ loop:		while( true ){
 					ByteArrayOutputStream serialized = new ByteArrayOutputStream();
 					toSend.getChunks().serialize( serialized );
 					serialized.close();
-					sock.getOutputStream().write( sock.getOutputStream().getOutputSize( serialized.size() ) );
+					int sizeToWrite = sock.getOutputStream().getOutputSize( serialized.size() );
+					//System.out.println( "Size to write -> "+sizeToWrite);
+					sock.getOutputStream().write( sizeToWrite );
 					sock.getOutputStream().write( serialized.toByteArray() );
 					sock.getOutputStream().sendDigest();
 					
@@ -92,12 +94,14 @@ loop:		while( true ){
 					if( index < found.getChunks().length() -1 )
 						size = IncompleteSharedFile.CHUNK_SIZE;
 					else
-						size = (int) (found.getSize() - (index -1) * IncompleteSharedFile.CHUNK_SIZE);
+						size = (int) (found.getSize() - index * IncompleteSharedFile.CHUNK_SIZE);
 					
 					InputStream chunk = found.getChunkAsInputStream( index );
 					
 					sock.getOutputStream().write( Response.OK );
-					sock.getOutputStream().write( sock.getOutputStream().getOutputSize( size ) );
+					int sizeToWrite = sock.getOutputStream().getOutputSize( size );
+					//System.out.println( "Size to write -> "+sizeToWrite);
+					sock.getOutputStream().write( sizeToWrite );
 					sock.getOutputStream().write( chunk );
 					chunk.close();
 					sock.getOutputStream().sendDigest();

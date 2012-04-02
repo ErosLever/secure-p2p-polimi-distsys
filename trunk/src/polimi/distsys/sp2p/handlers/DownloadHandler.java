@@ -177,6 +177,7 @@ public class DownloadHandler extends Thread {
 			if( !reply.equals( Response.OK ) )
 				throw new IOException("Something went wrong while preparing download from "+node );
 			int size = sock.getInputStream().readInt();
+			//System.out.println( "Size to read -> "+size);
 			BitArray availableChunks = BitArray.deserialize( 
 					sock.getInputStream().readFixedRawSize( size ) );
 			sock.getInputStream().checkDigest();
@@ -196,6 +197,7 @@ public class DownloadHandler extends Thread {
 			if( reply.equals( Response.OK ) ){
 				
 				int size = sock.getInputStream().readInt();
+				//System.out.println( "Size to read - "+size);
 				InputStream chunk = sock.getInputStream().readFixedRawSize( size );
 				incompleteFile.writeChunk( i, chunk );
 				chunk.close();
