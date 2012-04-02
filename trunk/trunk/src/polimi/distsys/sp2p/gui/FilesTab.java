@@ -85,18 +85,22 @@ public class FilesTab extends JPanel{
 
 
 						} catch (IOException e) {
+							e.printStackTrace();
 							console.append(DisplayedWindow.genericComError);
 							if(!e.getMessage().isEmpty())
 								console.append(e.getMessage() + DisplayedWindow.newline);
 						} catch (GeneralSecurityException e) {
+							e.printStackTrace();
 							console.append(DisplayedWindow.genericSecError);
 							if(!e.getMessage().isEmpty())
 								console.append(e.getMessage() +DisplayedWindow.newline);
 						} catch (IllegalStateException e) {
+							e.printStackTrace();
 							console.append(DisplayedWindow.notConnectstate);
 							if(!e.getMessage().isEmpty())
 								console.append(e.getMessage() +DisplayedWindow.newline);
 						} catch (ClassNotFoundException e) {
+							e.printStackTrace();
 
 						}
 
@@ -124,22 +128,25 @@ public class FilesTab extends JPanel{
 							refreshFileList();
 
 						} catch (IOException e) {
+							e.printStackTrace();
 							console.append(DisplayedWindow.genericComError);
 							if(!e.getMessage().isEmpty())
 								console.append(e.getMessage() +DisplayedWindow.newline);
 
 						} catch (GeneralSecurityException e) {
+							e.printStackTrace();
 							console.append(DisplayedWindow.genericSecError);
 							if(!e.getMessage().isEmpty())
 								console.append(e.getMessage() +DisplayedWindow.newline);
 
 						} catch (IllegalStateException e) {
+							e.printStackTrace();
 							console.append(DisplayedWindow.notConnectstate);
 							if(!e.getMessage().isEmpty())
 								console.append(e.getMessage() +DisplayedWindow.newline);
 
 						} catch (ClassNotFoundException e) {
-
+							e.printStackTrace();
 						} 
 					} else {
 

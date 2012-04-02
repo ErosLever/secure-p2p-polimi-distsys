@@ -83,14 +83,17 @@ public class SearchTab extends JPanel{
 
 
 						} catch (IOException e) {
+							e.printStackTrace();
 							console.append(DisplayedWindow.genericComError);
 							if(!e.getMessage().isEmpty())
 								console.append(e.getMessage() + DisplayedWindow.newline);
 						} catch (GeneralSecurityException e) {
+							e.printStackTrace();
 							console.append(DisplayedWindow.genericSecError);
 							if(!e.getMessage().isEmpty())
 								console.append(e.getMessage() + DisplayedWindow.newline);
 						} catch (IllegalStateException e) {
+							e.printStackTrace();
 							console.append(DisplayedWindow.notConnectstate);
 							if(!e.getMessage().isEmpty())
 								console.append(e.getMessage() + DisplayedWindow.newline);
@@ -140,6 +143,7 @@ public class SearchTab extends JPanel{
 
 								@Override
 								public void endOfDownload(IncompleteSharedFile isf) {
+									
 									console.append("Download Completato:" + isf.getFileNames().iterator().next() + DisplayedWindow.newline);
 									downTab.refreshDownload();
 								}
@@ -154,18 +158,22 @@ public class SearchTab extends JPanel{
 							
 
 						} catch (IOException e) {
+							e.printStackTrace();
 							console.append(DisplayedWindow.genericComError);
 							if(!e.getMessage().isEmpty())
 								console.append(e.getMessage() + DisplayedWindow.newline);
 						} catch (GeneralSecurityException e) {
+							e.printStackTrace();
 							console.append(DisplayedWindow.genericSecError);
 							if(!e.getMessage().isEmpty())
 								console.append(e.getMessage() + DisplayedWindow.newline);
 						} catch (IllegalStateException e) {
+							e.printStackTrace();
 							console.append(DisplayedWindow.notConnectstate);
 							if(!e.getMessage().isEmpty())
 								console.append(e.getMessage() + DisplayedWindow.newline);
 						} catch (ClassNotFoundException e) {
+							e.printStackTrace();
 
 						}
 					}
