@@ -107,7 +107,7 @@ public class StreamCipherOutputStream extends FilterOutputStream {
 	public synchronized void write( int num ) throws IOException {
 		byte[] repr = new byte[ Integer.SIZE / 8 ];
 		for(int i=0; i<repr.length; i++)
-			repr[i] = (byte) ( ( num >> ( i * 8 ) ) & 0xFF );
+			repr[i] = (byte) ( ( num >>> ( i * 8 ) ) & 0xFF );
 		write( repr );
 	}
 	
@@ -255,10 +255,13 @@ public class StreamCipherOutputStream extends FilterOutputStream {
 		}
 		
 		public int getOutputSize( int inputLen ){
-			int blocks = (int) Math.ceil( 1.0 * inputLen / inputBlockSize );
-			/*if( inputLen > 128*1024)
-				blocks++;*/
-			return outputBlockSize * blocks;
+			if( !supportMultiBlock ){
+				int blocks = (int) Math.ceil( 1.0 * inputLen / inputBlockSize );
+				/*if( inputLen > 128*1024)
+					blocks++;*/
+				return outputBlockSize * blocks;
+			}else
+				return cipher.getOutputSize( inputLen );
 		}
 		
 		public int getInputSize( int outSize ){
