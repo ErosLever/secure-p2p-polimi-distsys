@@ -132,6 +132,7 @@ public class SearchTab extends JPanel{
 
 								@Override
 								public void gotException( IncompleteSharedFile isf, Exception ex) {
+									ex.printStackTrace();
 									console.append(ex.getMessage() + DisplayedWindow.newline);
 									console.append("Si è verificato un problema" + DisplayedWindow.newline);
 									downTab.refreshDownload();
