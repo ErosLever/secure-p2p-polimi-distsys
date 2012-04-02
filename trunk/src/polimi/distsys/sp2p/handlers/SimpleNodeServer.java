@@ -73,6 +73,7 @@ loop:		while( true ){
 					ByteArrayOutputStream serialized = new ByteArrayOutputStream();
 					toSend.getChunks().serialize( serialized );
 					serialized.close();
+					sock.getOutputStream().write( sock.getOutputStream().getOutputSize( serialized.size() ) );
 					sock.getOutputStream().write( serialized.toByteArray() );
 					sock.getOutputStream().sendDigest();
 					
