@@ -9,6 +9,8 @@ import java.nio.channels.SocketChannel;
 import java.security.GeneralSecurityException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.sql.Timestamp;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -128,7 +130,8 @@ loop:		while(true){
 				}
 	
 				String clientName = NodeInfo.getNickname( enSocket.getClientPublicKey() );
-				System.out.println("Ricevuta "+req+" da "+clientName);
+				String timestamp = new Timestamp( new Date().getTime() ).toString();
+				System.out.println(timestamp+" "+req+" da "+clientName);
 				
 				switch(req) {
 				
