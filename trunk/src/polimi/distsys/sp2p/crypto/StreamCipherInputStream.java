@@ -65,7 +65,11 @@ public class StreamCipherInputStream extends FilterInputStream {
 	
 	public synchronized <E extends Enum<?>>E readEnum( Class<E> type ) throws GeneralSecurityException, IOException{
 		int value = readInt();
-		return type.getEnumConstants()[ value ];
+		try{
+			return type.getEnumConstants()[ value ];
+		}catch(ArrayIndexOutOfBoundsException e){
+			throw new IOException( e );
+		}
 	}
 
 	public synchronized byte[] readFixedSizeAsByteArray(int len) throws GeneralSecurityException, IOException{
