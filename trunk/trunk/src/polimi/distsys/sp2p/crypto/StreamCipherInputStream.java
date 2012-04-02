@@ -34,6 +34,10 @@ public class StreamCipherInputStream extends FilterInputStream {
 		for( ResettableCipher rc : reversed ){
 			len = rc.getInputSize( len );
 		}
+		return readFixedRawSize( len );
+	}
+	
+	public synchronized InputStream readFixedRawSize( int len ) throws GeneralSecurityException{
 		InputStream in = new LimitedInputStream( this.in, len );
 		for( ResettableCipher rc : ciphers ){
 			if( rc.getAlgorithm().equals("RSA") )

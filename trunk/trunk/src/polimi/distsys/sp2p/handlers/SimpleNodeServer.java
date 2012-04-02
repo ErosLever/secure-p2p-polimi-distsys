@@ -87,9 +87,16 @@ loop:		while( true ){
 					IncompleteSharedFile found = SearchHandler.searchLocal( 
 							file, node.getFileList(), node.getIncompleteFiles() );
 					
+					int size;
+					if( index < found.getChunks().length() -1 )
+						size = IncompleteSharedFile.CHUNK_SIZE;
+					else
+						size = (int) (found.getSize() - (index -1) * IncompleteSharedFile.CHUNK_SIZE);
+					
 					InputStream chunk = found.getChunkAsInputStream( index );
 					
 					sock.getOutputStream().write( Response.OK );
+					sock.getOutputStream().write( sock.getOutputStream().getOutputSize( size ) );
 					sock.getOutputStream().write( chunk );
 					chunk.close();
 					sock.getOutputStream().sendDigest();
