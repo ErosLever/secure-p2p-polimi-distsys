@@ -181,7 +181,7 @@ public class DownloadTab extends JPanel {
 				active = dh.isActive();
 
 			String name = isf.getDestinationFile().getName();
-			String pecent = Math.ceil((isf.getChunks().count() / isf.getChunks().length()) * 100.00) + " %";
+			String pecent = ( 10000 * isf.getChunks().count() / isf.getChunks().length() ) / 100.0 + " %";
 
 			downloadModel.addRow(new Object[] { 
 					name, pecent, active});
