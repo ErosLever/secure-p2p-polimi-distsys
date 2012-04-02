@@ -103,14 +103,14 @@ public class StreamCipherInputStream extends FilterInputStream {
 	}
 	
 	public synchronized <E>E readObject( Class<E> type, int len ) throws IOException, GeneralSecurityException, ClassNotFoundException{
-		ObjectInputStream ois = new ObjectInputStream( readFixedSize( len ) );
+		ObjectInputStream ois = new ObjectInputStream( readFixedRawSize( len ) );
 		Object o = ois.readObject();
         ois.close();
         return type.cast(o);
 	}
 	
 	public synchronized Object readObject( int len ) throws IOException, GeneralSecurityException, ClassNotFoundException{
-		ObjectInputStream ois = new ObjectInputStream( readFixedSize( len ) );
+		ObjectInputStream ois = new ObjectInputStream( readFixedRawSize( len ) );
 		Object o = ois.readObject();
         ois.close();
         return o;

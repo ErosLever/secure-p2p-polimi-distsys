@@ -34,6 +34,7 @@ public class EncryptedSocketFactory {
 	
 
 	public static final int SOCKET_TIMEOUT = 5*1000; // 5 sec
+	public static final int SOCKET_CONNECT_TIMEOUT = SOCKET_TIMEOUT / 2;
 
 	
 	/**
@@ -78,7 +79,7 @@ public class EncryptedSocketFactory {
 		
 		protected EncryptedSocket(Socket sock, E arg) throws GeneralSecurityException, IOException{
 			socket = sock;
-			socket.setSoTimeout( SOCKET_TIMEOUT );
+			socket.setSoTimeout( SOCKET_CONNECT_TIMEOUT );
 			sessionKey = handshake(arg);
 			inputStream = initInputStream();
 			outputStream = initOutputStream();
@@ -107,18 +108,22 @@ public class EncryptedSocketFactory {
 			return new StreamCipherOutputStream( socket.getOutputStream(), lrc );
 		}
 		
+		@SuppressWarnings("unused")
 		public StreamCipherInputStream getInputStream(){
 			return inputStream;
 		}
 		
+		@SuppressWarnings("unused")
 		public StreamCipherOutputStream getOutputStream(){
 			return outputStream;
 		}
 		
+		@SuppressWarnings("unused")
 		public InetAddress getRemoteAddress(){
 			return socket.getInetAddress();
 		}
 		
+		@SuppressWarnings("unused")
 		public void close(){
 			// for some unknown reason we have to first close the output
 			if(!socket.isOutputShutdown())
@@ -150,6 +155,7 @@ public class EncryptedSocketFactory {
 			return socket.isOutputShutdown() || socket.isClosed();
 		}
 		
+		@SuppressWarnings("unused")
 		public boolean isConnected(){
 			return ! ( isOutputShutdown() || isInputShutdown() );
 		}

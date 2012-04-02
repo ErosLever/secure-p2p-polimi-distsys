@@ -173,10 +173,12 @@ loop:		while(true){
 							}
 							
 							enSocket.getOutputStream().write( Response.OK );
-							enSocket.getOutputStream().flush();
-						} catch (ClassNotFoundException e) {
+						} catch (Exception e) {
 							e.printStackTrace();
+							enSocket.getOutputStream().write( Response.FAIL );
 						}
+						enSocket.getOutputStream().sendDigest();
+						enSocket.getOutputStream().flush();
 						break;
 						
 					case LEAVE:

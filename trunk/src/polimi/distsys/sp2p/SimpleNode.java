@@ -158,23 +158,24 @@ public class SimpleNode extends Node {
 
 					secureChannel = enSockFact.getEncryptedClientSocket(
 							dest.getAddress(), dest.getPublicKey());
-					
-					secureChannel.getOutputStream().write( Request.LOGIN );
-					secureChannel.getOutputStream().write( socket.getLocalPort() );
-					secureChannel.getOutputStream().sendDigest();
-					secureChannel.getOutputStream().flush();
-					
-					Response reply = secureChannel.getInputStream().readEnum( Response.class );
-
-					if( reply == Response.OK ){
-						supernode = dest;
-						byte[] ip = secureChannel.getInputStream().readFixedSizeAsByteArray(4);
-						secureChannel.getInputStream().checkDigest();
-						this.myAddress = Inet4Address.getByAddress( ip );
-						lastCommunicationTime = System.currentTimeMillis();
-						break;
-					}else{
-						secureChannel.close();
+					synchronized( secureChannel ){
+						secureChannel.getOutputStream().write( Request.LOGIN );
+						secureChannel.getOutputStream().write( socket.getLocalPort() );
+						secureChannel.getOutputStream().sendDigest();
+						secureChannel.getOutputStream().flush();
+						
+						Response reply = secureChannel.getInputStream().readEnum( Response.class );
+	
+						if( reply == Response.OK ){
+							supernode = dest;
+							byte[] ip = secureChannel.getInputStream().readFixedSizeAsByteArray(4);
+							secureChannel.getInputStream().checkDigest();
+							this.myAddress = Inet4Address.getByAddress( ip );
+							lastCommunicationTime = System.currentTimeMillis();
+							break;
+						}else{
+							secureChannel.close();
+						}
 					}
 
 				} catch(IOException e) {
@@ -194,21 +195,25 @@ public class SimpleNode extends Node {
 		if( supernode == null)
 			throw new IllegalStateException("Not connected");
 		if( ! secureChannel.isConnected() ){
-			secureChannel = enSockFact.getEncryptedClientSocket( 
-					supernode.getAddress(), supernode.getPublicKey() );
+			synchronized( secureChannel ){
+				secureChannel = enSockFact.getEncryptedClientSocket( 
+						supernode.getAddress(), supernode.getPublicKey() );
+			}
 		}else{
 			if( System.currentTimeMillis() - lastCommunicationTime < EncryptedSocketFactory.SOCKET_TIMEOUT )
 				return;
-			try{
-				secureChannel.getOutputStream().write( Request.PING );
-				secureChannel.getOutputStream().flush();
-				Response reply = secureChannel.getInputStream().readEnum( Response.class );
-				if( !reply.equals( Response.PONG ) )
-					throw new IOException();
-			}catch(IOException e){
-				secureChannel.close();
-				secureChannel = enSockFact.getEncryptedClientSocket( 
-						supernode.getAddress(), supernode.getPublicKey() );
+			synchronized( secureChannel ){
+				try{
+					secureChannel.getOutputStream().write( Request.PING );
+					secureChannel.getOutputStream().flush();
+					Response reply = secureChannel.getInputStream().readEnum( Response.class );
+					if( !reply.equals( Response.PONG ) )
+						throw new IOException();
+				}catch(IOException e){
+					secureChannel.close();
+					secureChannel = enSockFact.getEncryptedClientSocket( 
+							supernode.getAddress(), supernode.getPublicKey() );
+				}
 			}
 		}
 		lastCommunicationTime = System.currentTimeMillis();
@@ -269,9 +274,9 @@ public class SimpleNode extends Node {
 	public void publish( Set<? extends SharedFile> fileList ) throws IOException, GeneralSecurityException, IllegalStateException, ClassNotFoundException {
 
 		checkConnectionWithSuperNode();
-		
+
 		Set<SharedFile> toSend = new HashSet<SharedFile>();
-		
+
 		//evita duplicati
 		for( SharedFile f : fileList) {
 			if(!this.fileList.contains(f)) {
@@ -280,37 +285,40 @@ public class SimpleNode extends Node {
 		}
 		//manda solo i file che non erano già presenti nella lista
 		if (!toSend.isEmpty()) {
-			
-			secureChannel.getOutputStream().write( Request.PUBLISH );
 
-			secureChannel.getOutputStream().writeVariableSize( toSend );
-			secureChannel.getOutputStream().sendDigest();
-			secureChannel.getOutputStream().flush();
-		
-		
-		Response reply = secureChannel.getInputStream().readEnum( Response.class );
-		if( reply == Response.OK ){
-			for( SharedFile sf : toSend )
-				if( sf instanceof LocalSharedFile )
-					this.fileList.add( (LocalSharedFile) sf );
-				else if( sf instanceof IncompleteSharedFile )
-					if( ! this.incompleteFiles.contains( sf ) )
-						this.incompleteFiles.add( (IncompleteSharedFile) sf );
-		}else{
-			
-			//TODO NON DOVREMMO DISCONNETTERE IL NODO IN QUESTO CASO
-			
-			/* ci sarebbe da fare una catch della io exception e disconnettere nel caso il nodo dalla rete
-			 */
-			throw new IOException( "Qualcosa è andato storto!" );
-		} 
+			synchronized( secureChannel ){
+				secureChannel.getOutputStream().write( Request.PUBLISH );
+	
+				secureChannel.getOutputStream().writeVariableSize( toSend );
+				secureChannel.getOutputStream().sendDigest();
+				secureChannel.getOutputStream().flush();
+	
+	
+				Response reply = secureChannel.getInputStream().readEnum( Response.class );
+				secureChannel.getInputStream().checkDigest();
+				if( reply == Response.OK ){
+					for( SharedFile sf : toSend )
+						if( sf instanceof LocalSharedFile )
+							this.fileList.add( (LocalSharedFile) sf );
+						else if( sf instanceof IncompleteSharedFile )
+							if( ! this.incompleteFiles.contains( sf ) )
+								this.incompleteFiles.add( (IncompleteSharedFile) sf );
+				}else{
+	
+					//TODO NON DOVREMMO DISCONNETTERE IL NODO IN QUESTO CASO
+	
+					/* ci sarebbe da fare una catch della io exception e disconnettere nel caso il nodo dalla rete
+					 */
+					throw new IOException( "Qualcosa è andato storto!" );
+				} 
+			}
 		} else {
-			
+
 			//solo se TUTTI i file richiesti erano già pubblicati
 			throw new IOException("Il file richiesto è già stato pubblicato"); 
 		}
-		
-		
+
+
 	}
 
 	/**
@@ -345,19 +353,21 @@ public class SimpleNode extends Node {
 
 		checkConnectionWithSuperNode();
 
-		secureChannel.getOutputStream().write( Request.UNPUBLISH );
-		secureChannel.getOutputStream().writeVariableSize( list );
-		secureChannel.getOutputStream().sendDigest();
-		secureChannel.getOutputStream().flush();
-
-		Response reply = secureChannel.getInputStream().readEnum( Response.class );
-		
-		if( reply == Response.OK ) {
-
-			fileList.removeAll( list );
-
-		} else {
-			throw new IOException( "Something went wrong while un-publishin'" );
+		synchronized( secureChannel ){
+			secureChannel.getOutputStream().write( Request.UNPUBLISH );
+			secureChannel.getOutputStream().writeVariableSize( list );
+			secureChannel.getOutputStream().sendDigest();
+			secureChannel.getOutputStream().flush();
+	
+			Response reply = secureChannel.getInputStream().readEnum( Response.class );
+			
+			if( reply == Response.OK ) {
+	
+				fileList.removeAll( list );
+	
+			} else {
+				throw new IOException( "Something went wrong while un-publishin'" );
+			}
 		}
 
 	}
@@ -398,44 +408,46 @@ public class SimpleNode extends Node {
 		
 		checkConnectionWithSuperNode();
 		
-		secureChannel.getOutputStream().write( Request.SEARCH );
-		secureChannel.getOutputStream().writeVariableSize( query.getBytes("utf-8") );
-		secureChannel.getOutputStream().sendDigest();
-		secureChannel.getOutputStream().flush();
-
-		Response reply = secureChannel.getInputStream().readEnum( Response.class );
-
-		if( reply == Response.OK )  {
-			
-			List<RemoteSharedFile> searchList = secureChannel.getInputStream().readObject(List.class);
-			secureChannel.getInputStream().checkDigest();
-			
-			return searchList;
-		}else
-			throw new IOException( "Server response: got "+reply.name()+" instead of OK");
+		synchronized( secureChannel ){
+			secureChannel.getOutputStream().write( Request.SEARCH );
+			secureChannel.getOutputStream().writeVariableSize( query.getBytes("utf-8") );
+			secureChannel.getOutputStream().sendDigest();
+			secureChannel.getOutputStream().flush();
 	
+			Response reply = secureChannel.getInputStream().readEnum( Response.class );
+	
+			if( reply == Response.OK )  {
+				
+				List<RemoteSharedFile> searchList = secureChannel.getInputStream().readObject(List.class);
+				secureChannel.getInputStream().checkDigest();
+				
+				return searchList;
+			}else
+				throw new IOException( "Server response: got "+reply.name()+" instead of OK");
+		}
 	}
 	
 	public RemoteSharedFile searchByHash(byte[] hash) throws IllegalStateException, GeneralSecurityException, IOException, ClassNotFoundException {
 		
 		checkConnectionWithSuperNode();
 		
-		secureChannel.getOutputStream().write( Request.SEARCH_BY_HASH );
-		secureChannel.getOutputStream().write( hash );
-		secureChannel.getOutputStream().sendDigest();
-		secureChannel.getOutputStream().flush();
-
-		Response reply = secureChannel.getInputStream().readEnum( Response.class );
-
-		if( reply == Response.OK )  {
-			
-			RemoteSharedFile toReturn = secureChannel.getInputStream().readObject( RemoteSharedFile.class );
-			secureChannel.getInputStream().checkDigest();
-			
-			return toReturn;
-		}else
-			throw new IOException( "Server response: got "+reply.name()+" instead of OK");
+		synchronized( secureChannel ){
+			secureChannel.getOutputStream().write( Request.SEARCH_BY_HASH );
+			secureChannel.getOutputStream().write( hash );
+			secureChannel.getOutputStream().sendDigest();
+			secureChannel.getOutputStream().flush();
 	
+			Response reply = secureChannel.getInputStream().readEnum( Response.class );
+	
+			if( reply == Response.OK )  {
+				
+				RemoteSharedFile toReturn = secureChannel.getInputStream().readObject( RemoteSharedFile.class );
+				secureChannel.getInputStream().checkDigest();
+				
+				return toReturn;
+			}else
+				throw new IOException( "Server response: got "+reply.name()+" instead of OK");
+		}
 	}
 	
 	public void requestCommunicationChannel( NodeInfo node, SharedFile sharedFile ) throws IOException, GeneralSecurityException{
@@ -578,11 +590,13 @@ public class SimpleNode extends Node {
 	public void closeConnection() throws IllegalStateException, GeneralSecurityException, IOException, ClassNotFoundException {
 		
 		if(secureChannel != null){
-			if(secureChannel.isConnected()){
-				secureChannel.getOutputStream().write( Request.CLOSE_CONN );
+			synchronized( secureChannel ){
+				if(secureChannel.isConnected()){
+					secureChannel.getOutputStream().write( Request.CLOSE_CONN );
+				}
+				secureChannel.close();
+				secureChannel = null;
 			}
-			secureChannel.close();
-			secureChannel = null;
 		}
 		
 	}
