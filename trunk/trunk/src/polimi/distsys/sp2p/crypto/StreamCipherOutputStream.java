@@ -130,7 +130,7 @@ public class StreamCipherOutputStream extends FilterOutputStream {
 		ObjectOutputStream oos = new ObjectOutputStream( baos );
 		oos.writeObject( o );
 		oos.close();
-		write( baos.size() );
+		write( getOutputSize( baos.size() ) );
 		write( baos.toByteArray() );
 	}
 
