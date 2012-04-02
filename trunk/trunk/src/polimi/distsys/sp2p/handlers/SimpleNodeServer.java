@@ -7,6 +7,8 @@ import java.net.Socket;
 import java.nio.channels.SocketChannel;
 import java.security.GeneralSecurityException;
 import java.security.PublicKey;
+import java.sql.Timestamp;
+import java.util.Date;
 
 import polimi.distsys.sp2p.SimpleNode;
 import polimi.distsys.sp2p.containers.IncompleteSharedFile;
@@ -47,7 +49,8 @@ loop:		while( true ){
 				}
 				
 				String clientName = NodeInfo.getNickname( sock.getClientPublicKey() );
-				System.out.println("Ricevuta "+req+" da "+clientName);
+				String timestamp = new Timestamp( new Date().getTime() ).toString();
+				System.out.println(timestamp+" "+req+" da "+clientName);
 
 				switch( req ){
 				
