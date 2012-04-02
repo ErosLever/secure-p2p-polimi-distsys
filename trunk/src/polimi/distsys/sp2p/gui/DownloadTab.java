@@ -75,10 +75,12 @@ public class DownloadTab extends JPanel {
 							console.append("Ho ripreso il download del file: " + i.getDestinationFile().getName());
 
 						} catch (IOException e) {
+							e.printStackTrace();
 							console.append(DisplayedWindow.genericComError);
 							if(!e.getMessage().isEmpty())
 								console.append(e.getMessage() + DisplayedWindow.newline);
 						} catch (GeneralSecurityException e) {
+							e.printStackTrace();
 							console.append(DisplayedWindow.genericSecError);
 							if(!e.getMessage().isEmpty())
 								console.append(e.getMessage() + DisplayedWindow.newline);
@@ -127,14 +129,17 @@ public class DownloadTab extends JPanel {
 							refreshDownload();
 
 						} catch (IOException e) {
+							e.printStackTrace();
 							console.append(DisplayedWindow.genericComError);
 							if(!e.getMessage().isEmpty())
 								console.append(e.getMessage() + DisplayedWindow.newline);
 						} catch (GeneralSecurityException e) {
+							e.printStackTrace();
 							console.append(DisplayedWindow.genericSecError);
 							if(!e.getMessage().isEmpty())
 								console.append(e.getMessage() + DisplayedWindow.newline);
 						} catch (IllegalStateException e) {
+							e.printStackTrace();
 							// TODO Auto-generated catch block
 							e.printStackTrace();
 						} catch (ClassNotFoundException e) {
