@@ -176,9 +176,9 @@ public class DownloadHandler extends Thread {
 			Response reply = sock.getInputStream().readEnum( Response.class );
 			if( !reply.equals( Response.OK ) )
 				throw new IOException("Something went wrong while preparing download from "+node );
+			int size = sock.getInputStream().readInt();
 			BitArray availableChunks = BitArray.deserialize( 
-					sock.getInputStream().readFixedSize( 
-							DownloadHandler.this.incompleteFile.getChunks().length() ) );
+					sock.getInputStream().readFixedRawSize( size ) );
 			sock.getInputStream().checkDigest();
 			this.availableChunks = availableChunks;
 		}
