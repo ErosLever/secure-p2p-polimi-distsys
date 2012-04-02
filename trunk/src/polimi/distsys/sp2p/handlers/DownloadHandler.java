@@ -195,7 +195,8 @@ public class DownloadHandler extends Thread {
 			Response reply = sock.getInputStream().readEnum( Response.class );
 			if( reply.equals( Response.OK ) ){
 				
-				InputStream chunk = sock.getInputStream().readFixedSize( chunkSize );
+				int size = sock.getInputStream().readInt();
+				InputStream chunk = sock.getInputStream().readFixedRawSize( size );
 				incompleteFile.writeChunk( i, chunk );
 				chunk.close();
 				sock.getInputStream().checkDigest();

@@ -173,6 +173,12 @@ public class StreamCipherOutputStream extends FilterOutputStream {
 	public void deactivateDigest(){
 		digestStream.deactivate();
 	}
+	
+	public int getOutputSize(int inputSize){
+		for( ResettableCipher rc : ciphers )
+			inputSize = rc.getOutputSize( inputSize );
+		return inputSize;
+	}
 		
 	public static class ResettableCipher {
 		
@@ -257,8 +263,8 @@ public class StreamCipherOutputStream extends FilterOutputStream {
 		
 		public int getInputSize( int outSize ){
 			int blocks = (int) Math.ceil( 1.0 * outSize / outputBlockSize );
-			if( outSize >= 256*1024)
-				blocks++;
+			/*if( outSize >= 256*1024)
+				blocks++;*/
 			return inputBlockSize * blocks;
 		}
 
