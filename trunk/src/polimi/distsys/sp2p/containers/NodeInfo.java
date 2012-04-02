@@ -52,6 +52,23 @@ public class NodeInfo implements Serializable {
 		return false;
 	}
 	
+	@Override
+	public int hashCode(){
+		int count;
+		byte[] asd = new byte[ 4 ];
+		byte[] bkey = publicKey.getEncoded();
+		for( count = 0; count < bkey.length - 4 ; count += 4 ){
+			for( int j = 0; j < 4; j++ )
+				asd[ j ] ^= bkey[ count + j ];
+		}
+		for( int j = 0; count + j < bkey.length; j++ )
+			asd[ j ] ^= bkey[ count + j ];
+		int ret = 0;
+		for( int i = 0; i < 4; i++ )
+			ret |= asd[ i ] << ( 8 * i );
+		return ret;
+	}
+	
 	public static String getNickname( PublicKey key ){
 		int len = 6;
 		int count;
